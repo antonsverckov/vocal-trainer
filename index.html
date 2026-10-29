@@ -1,0 +1,2158 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Тренажёр распевки</title>
+<meta name="description" content="Пой распевки, аккорды и интервалы во всех тональностях — тренажёр показывает, попадаешь ли ты в ноту.">
+<meta property="og:title" content="Тренажёр распевки">
+<meta property="og:description" content="Распевки, аккорды и интервалы во всех 24 тональностях. Пой — и сразу видно, попадаешь ли ты в ноту.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='32' fill='%2300dae8'/%3E%3Ctext x='32' y='45' font-size='38' text-anchor='middle' fill='%23001316' font-family='Arial'%3E%E2%99%AA%3C/text%3E%3C/svg%3E">
+<script src="data.js"></script>
+<script src="coach.js"></script>
+<script src="knowledge.js"></script>
+<script src="course.js"></script>
+<script src="coach.en.js"></script>
+<script src="knowledge.en.js"></script>
+<script src="course.en.js"></script>
+<script src="i18n.js"></script>
+<script src="separate.js"></script>
+<script src="melody.js"></script>
+<script src="lyrics.js"></script>
+<script src="lib/lame.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Look & feel after Moises: black canvas, near-black cards with hairline borders,
+     big soft radii, pill controls, one cyan accent with dark text on it. */
+  :root {
+    --bg: #000; --panel: #0e0f11; --panel2: #16181b; --line: rgba(255,255,255,.10); --line2: rgba(255,255,255,.16);
+    --text: #fcfcfd; --muted: rgba(255,255,255,.6); --faint: rgba(255,255,255,.38);
+    --accent: #00dae8; --on-accent: #001316;
+    --hit: #00dae8; --high: #ffb547; --low: #a78bfa; --miss: #ff5c6c;
+    --r-xl: 32px; --r-lg: 22px; --r-md: 16px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }   /* hidden must win over flex/inline-flex below */
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 500 16px/1.45 Manrope, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  button, input, select, label { font-family: inherit; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 18px 20px 120px; }
+
+  /* top bar */
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 34px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; letter-spacing: -.01em; }
+  .logo { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); font-size: 18px; }
+  .lang { display: flex; gap: 2px; border: 1px solid var(--line2); border-radius: 999px; padding: 3px; }
+  .lang button { background: none; border: 0; color: var(--muted); font: 600 12px Manrope, sans-serif; padding: 5px 10px; border-radius: 999px; cursor: pointer; }
+  .lang button.on { background: var(--line2); color: #fff; }
+  .badge-top { margin-left: auto; border: 1px solid var(--line2); border-radius: 999px; padding: 7px 14px; font-size: 13px; color: var(--muted); }
+
+  /* hero */
+  h1 { font-size: clamp(30px, 5.4vw, 52px); font-weight: 400; letter-spacing: -.025em; line-height: 1.08; margin: 0 0 10px; }
+  .sub { color: var(--muted); font-size: 17px; margin: 0 0 26px; max-width: 640px; }
+
+  /* control panel */
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-xl); padding: 20px; }
+  .controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin-bottom: 14px; }
+  .group { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+  .glabel { color: var(--faint); font-size: 12px; text-transform: uppercase; letter-spacing: .09em; min-width: 98px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .seg { display: inline-flex; gap: 4px; padding: 4px; background: rgba(255,255,255,.05); border: 1px solid var(--line); border-radius: 999px; }
+  .seg button { background: none; border: 0; color: var(--muted); padding: 8px 15px; font-size: 14px; font-weight: 600; border-radius: 999px; cursor: pointer; transition: background .15s, color .15s; }
+  .seg button:hover { color: var(--text); }
+  .seg button.on { background: #fff; color: #000; }
+  .keysel { appearance: none; -webkit-appearance: none; background: rgba(255,255,255,.05) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='white' stroke-opacity='.6' stroke-width='1.6' fill='none'/%3E%3C/svg%3E") no-repeat right 16px center;
+    color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 10px 42px 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .keysel option { background: #16181b; color: #fff; }
+  .transport { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding-top: 16px; border-top: 1px solid var(--line); }
+  .go { background: var(--accent); color: var(--on-accent); border: 0; border-radius: 999px; padding: 12px 26px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform .1s, filter .15s; }
+  .go:hover { filter: brightness(1.08); } .go:active { transform: scale(.98); }
+  .go:disabled { opacity: .5; cursor: default; }
+  .stop { background: transparent; color: var(--text); border: 1px solid var(--line2); border-radius: 999px; padding: 11px 20px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .tempo { display: inline-flex; align-items: center; gap: 10px; background: rgba(255,255,255,.05); border: 1px solid var(--line); border-radius: 999px; padding: 7px 8px 7px 16px; font-size: 14px; color: var(--muted); }
+  .tempo input { width: 160px; accent-color: var(--accent); }
+  .tempo b { color: var(--text); min-width: 2.2em; text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+  .tempo button { background: rgba(255,255,255,.08); color: var(--text); border: 0; border-radius: 999px; padding: 5px 11px; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+  /* stage */
+  .stagewrap { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-xl); padding: 14px; }
+  .now { margin: 2px 4px 12px; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+  .now span { color: var(--faint); font-weight: 500; margin-right: 8px; }
+  .stage { position: relative; background: #08090a; border-radius: var(--r-lg); overflow: hidden; }
+  canvas { display: block; width: 100%; height: 520px; }
+  .readout { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+  .card { background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; }
+  .card .k { color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .09em; }
+  .card .v { font-size: 26px; font-weight: 600; letter-spacing: -.02em; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin: 12px 4px 2px; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 0; }
+
+  /* result & messages */
+  .result { display: none; margin-top: 14px; padding: 18px 20px; border-radius: var(--r-lg); background: rgba(0,218,232,.07); border: 1px solid rgba(0,218,232,.28); }
+  .result.show { display: block; }
+  .result b { font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
+  .result .rlabel { margin-top: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .result input { background: rgba(255,255,255,.06); color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 14px; }
+  .err { color: var(--miss); margin-top: 10px; font-size: 14px; }
+  .modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+  .modal-box { max-width: 440px; background: var(--panel2); border: 1px solid var(--line2); border-radius: var(--r-lg); padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+  .modal-box h3 { margin: 0 0 10px; font-size: 20px; font-weight: 600; }
+  .modal-box p { margin: 0 0 12px; color: var(--muted); }
+  .modal-box .hint-note { color: var(--accent); font-weight: 600; font-size: 17px; }
+  .zoom { display: inline-flex; align-items: center; gap: 6px; }
+  .zoom button { background: rgba(255,255,255,.08); color: var(--text); border: 1px solid var(--line2); border-radius: 999px; width: 28px; height: 28px; font-size: 16px; line-height: 1; cursor: pointer; }
+  .zoom b { min-width: 3.2em; text-align: center; color: var(--text); font-variant-numeric: tabular-nums; }
+  .countin { position: absolute; inset: 0; display: grid; place-items: center; font-size: 120px; font-weight: 700;
+    color: var(--accent); background: rgba(0,0,0,.35); pointer-events: none; font-variant-numeric: tabular-nums; }
+  .countin.beat { animation: countBeat .45s ease-out; }
+  @keyframes countBeat { from { transform: scale(1.35); opacity: .35; } to { transform: none; opacity: 1; } }
+  .songadd { display: inline-flex; align-items: center; padding: 10px 18px; font-size: 14px; }
+  .songjob { background: rgba(0,218,232,.06); border: 1px solid rgba(0,218,232,.28); border-radius: var(--r-md); padding: 12px 16px; font-size: 14px; }
+  .sj-bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,.08); margin: 10px 0 8px; overflow: hidden; }
+  .sj-bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width .3s; }
+  .about { background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 16px; font-size: 14px; color: var(--muted); }
+  .about summary { cursor: pointer; color: var(--text); font-weight: 600; }
+  .about p { margin: 8px 0 0; }
+
+  /* teacher: pops up after a run with what went wrong and how to fix it */
+  .coach { margin-top: 14px; display: grid; grid-template-columns: 116px 1fr; gap: 18px; align-items: start;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-xl); padding: 20px; }
+  .coach-av svg { display: block; width: 116px; height: 116px; }
+  .coach.pop .coach-av { animation: coachPop .7s cubic-bezier(.2, 1.5, .4, 1) both; }
+  .coach.pop .coach-body { animation: coachIn .45s .15s ease-out both; }
+  @keyframes coachPop { from { transform: translateY(46px) scale(.55); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes coachIn { from { transform: translateX(-10px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .coach-av { position: relative; }
+  /* a picture of Антон (img/anton.png) replaces the drawn face when it is there */
+  .av-photo { display: block; width: 116px; height: 116px; border-radius: 50%; object-fit: cover; background: #fff; border: 2px solid rgba(0,218,232,.45); transition: box-shadow .12s; }
+  .coach-av:has(.av-photo) svg { display: none; }
+  .coach-av.talking .av-photo { box-shadow: 0 0 0 5px rgba(0,218,232,.35), 0 0 22px rgba(0,218,232,.45); }
+  .coach-av.dance .av-photo { animation: avDancePhoto .42s ease-in-out 6 alternate; }
+  @keyframes avDancePhoto { from { transform: rotate(-9deg) translateY(0); } to { transform: rotate(9deg) translateY(-6px); } }
+  .av-body { transform-box: view-box; transform-origin: 60px 118px; }
+  .coach-av.dance .av-body { animation: avDance .42s ease-in-out 6 alternate; }
+  .coach-av.dance svg { animation: avHop .21s ease-in-out 12 alternate; }
+  @keyframes avDance { from { transform: rotate(-8deg); } to { transform: rotate(8deg); } }
+  @keyframes avHop { from { transform: translateY(0); } to { transform: translateY(-5px); } }
+  .av-note { position: absolute; opacity: 0; color: var(--accent); font-size: 20px; font-weight: 700; pointer-events: none; }
+  .av-note.n1 { left: -4%; top: 30%; } .av-note.n2 { right: -6%; top: 12%; color: var(--high); } .av-note.n3 { left: 42%; top: -10%; color: var(--low); }
+  .coach-av.dance .av-note { animation: avNote 1.6s ease-out 2; } .coach-av.dance .n2 { animation-delay: .35s; } .coach-av.dance .n3 { animation-delay: .7s; }
+  @keyframes avNote { 0% { opacity: 0; transform: translateY(10px) scale(.6); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(-34px) scale(1.15) rotate(12deg); } }
+  @media (prefers-reduced-motion: reduce) { .coach-av.dance .av-body, .coach-av.dance svg, .coach-av.dance .av-note { animation: none; } }
+  .av-eyes { transform-box: view-box; transform-origin: 60px 50px; animation: blink 4.6s infinite; }
+  @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+  .coach-name { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-weight: 600; font-size: 17px; margin-bottom: 10px; }
+  .coach-bubble { position: relative; background: var(--panel2); border: 1px solid var(--line2); border-radius: 18px; padding: 14px 16px; white-space: pre-line; min-height: 3em; }
+  .coach-bubble::before { content: ""; position: absolute; left: -7px; top: 22px; width: 12px; height: 12px; background: var(--panel2);
+    border-left: 1px solid var(--line2); border-bottom: 1px solid var(--line2); transform: rotate(45deg); }
+  .coach-bubble .also { display: block; margin-top: 8px; color: var(--muted); font-size: 14px; }
+  .place { margin-top: 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r-md); background: rgba(255,255,255,.03); }
+  .place h4 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.06); font-variant-numeric: tabular-nums; }
+  .chip.low { color: var(--low); } .chip.high { color: var(--high); } .chip.miss { color: var(--miss); } .chip.meh { color: var(--muted); }
+  .place .pbtns { margin-top: 12px; }
+  .tech { margin-top: 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r-md); background: rgba(255,255,255,.03); }
+  .tech h4 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+  .titem { padding: 10px 0 2px; } .titem + .titem { border-top: 1px solid var(--line); margin-top: 8px; }
+  .titem .tt { font-weight: 600; color: var(--high); } .titem.good .tt { color: var(--hit); }
+  .titem .td { color: var(--faint); font-size: 13px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .titem .tx { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  .ask { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .ask-h { font-weight: 600; font-size: 15px; margin-bottom: 10px; }
+  .thread { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-bottom: 10px; }
+  .thread:empty { display: none; }
+  .msg { max-width: 88%; padding: 10px 14px; border-radius: 16px; font-size: 15px; white-space: pre-line; }
+  .msg.me { justify-self: end; background: var(--accent); color: var(--on-accent); border-bottom-right-radius: 4px; font-weight: 600; }
+  .msg.t { justify-self: start; background: var(--panel2); border: 1px solid var(--line2); border-bottom-left-radius: 4px; }
+  .msg.t .src { display: block; margin-top: 6px; color: var(--faint); font-size: 12px; }
+  .ask .chips { margin-bottom: 10px; }
+  .ask .chip { cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--text); font-family: inherit; }
+  .ask .chip:hover { background: rgba(255,255,255,.07); }
+  .ask-f { display: flex; gap: 8px; }
+  .ask-f input { flex: 1; min-width: 0; background: rgba(255,255,255,.05); color: var(--text); border: 1px solid var(--line2); border-radius: 999px; padding: 10px 16px; font-size: 15px; font-family: inherit; }
+  .ask-f input:focus { outline: none; border-color: var(--accent); }
+  .ask-f .go { padding: 10px 18px; font-size: 14px; }
+  .place .go { padding: 8px 16px; font-size: 13px; }
+
+  /* progress */
+  .progress { margin-top: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-xl); padding: 22px; }
+  .phead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .progress h2 { font-size: 26px; font-weight: 400; letter-spacing: -.02em; margin: 0; } .progress h3 { font-size: 18px; font-weight: 500; margin: 0; }
+  .pnote, .muted { color: var(--muted); font-size: 13px; }
+  .pnote { margin: 8px 0 14px; max-width: 760px; }
+  /* one tile per exercise (ring = best score), the takes below it like a playlist */
+  .attempts { margin-top: 4px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .ptiles { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); }
+  .pgroup { grid-column: 1 / -1; color: var(--faint); font-size: 12px; text-transform: uppercase; letter-spacing: .09em; margin: 10px 2px 0; }
+  .pgroup:first-child { margin-top: 0; }
+  .ptile { display: flex; gap: 12px; align-items: center; width: 100%; min-width: 0; text-align: left; background: var(--panel2); border: 1px solid transparent; border-radius: var(--r-lg);
+    padding: 12px 14px; color: var(--text); font: inherit; cursor: pointer; transition: border-color .15s, background .15s; }
+  .ptile:hover { background: #1c1e22; }
+  .ptile.on { border-color: rgba(0,218,232,.55); }
+  .ptile > div { flex: 1; min-width: 0; }
+  .ptile .pt { font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ptile .ps { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .ring { flex: none; display: block; }
+  .up { color: var(--accent); } .down { color: var(--miss); }
+  .pdetail { grid-column: 1 / -1; display: grid; gap: 8px; }
+  .phero { background: var(--panel2); border-radius: var(--r-lg); padding: 14px 16px; }
+  .phero .ptile { padding: 0; background: none; cursor: default; }
+  .phero .ptile .pt { font-size: 17px; white-space: normal; }
+  .phero > .ghost { margin-top: 12px; }
+  .chart { width: 100%; height: 64px; display: block; margin-top: 10px; overflow: visible; }
+  .pempty { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  .pdeck { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .pplayer { background: var(--panel2); border: 1px solid transparent; border-radius: var(--r-lg); padding: 14px 16px; }
+  .pplayer.sel { border-color: var(--accent); }
+  .pph { display: flex; gap: 12px; align-items: flex-start; }
+  .rmain { flex: 1; min-width: 0; }
+  .rmain .meta { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .pname { display: flex; align-items: center; gap: 6px; }
+  .rmain input { flex: 1; min-width: 0; background: transparent; border: 0; border-bottom: 1px dashed var(--line2); color: var(--text); font-size: 17px; font-weight: 600; padding: 2px 0; font-family: inherit; }
+  .rmain input::placeholder { color: var(--text); opacity: .85; }
+  .rmain input:hover { border-bottom-color: var(--faint); }
+  .rmain input:focus { border-bottom: 1px solid var(--accent); outline: none; }
+  .rmain input:focus::placeholder { color: var(--faint); }
+  .pen { width: 30px; height: 30px; flex: none; font-size: 13px; color: var(--muted); }
+  .ppct { font-weight: 700; font-size: 26px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .seek { height: 6px; border-radius: 6px; background: #2a2d32; margin: 14px 0 6px; cursor: pointer; position: relative; }
+  .seek::before { content: ""; position: absolute; inset: -8px 0; }
+  .seek.off { cursor: default; opacity: .5; }
+  .seek i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 6px; background: var(--accent); }
+  .ptime { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .pctl { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+  .pbig { width: 52px; height: 52px; border-radius: 50%; border: 0; background: #fff; color: #000; font-size: 18px; cursor: pointer; padding: 0; }
+  .pbig.on { background: var(--accent); color: var(--on-accent); }
+  .pbig:disabled { background: rgba(255,255,255,.08); color: var(--faint); cursor: default; }
+  .plist { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .prow { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; background: none; border: 0; border-radius: 12px; padding: 9px 10px; color: var(--text); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+  .prow:hover { background: rgba(255,255,255,.05); }
+  .prow.cur { background: rgba(255,255,255,.06); }
+  .prow.sel .pl::after { content: " ⇄"; color: var(--accent); }
+  .prow .pn { width: 18px; flex: none; color: var(--faint); font-size: 12px; text-align: center; }
+  .prow .pl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prow input.pl { background: transparent; border: 0; border-bottom: 1px solid var(--accent); color: var(--text); font: inherit; padding: 1px 0; outline: none; }
+  .prow input.pl::placeholder { color: var(--faint); }
+  .rpen { width: 28px; height: 28px; flex: none; font-size: 12px; color: var(--muted); border-color: transparent; }
+  .prow:hover .rpen, .rpen:focus-visible { border-color: var(--line2); }
+  .prow .pd { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .prow b { min-width: 3em; text-align: right; font-variant-numeric: tabular-nums; }
+  .ib { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line2); background: transparent; color: var(--text); font-size: 14px; padding: 0; cursor: pointer; transition: background .15s; }
+  .ib:hover { background: rgba(255,255,255,.07); }
+  .ib.on { border-color: var(--accent); color: var(--accent); }
+  .ib:disabled { opacity: .35; cursor: default; background: transparent; }
+  .ghost { background: transparent; color: var(--text); border: 1px solid var(--line2); border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; }
+  .ghost:hover { background: rgba(255,255,255,.07); }
+  .pbtns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+  .compare { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .cmpcv { display: block; width: 100%; height: 220px; background: #08090a; border-radius: var(--r-md); margin-top: 10px; }
+
+  /* floating now-playing pill */
+  .nowplay { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 10; display: flex; gap: 12px; align-items: center;
+    background: rgba(22,24,27,.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--line2); border-radius: 999px;
+    padding: 7px 7px 7px 18px; box-shadow: 0 12px 40px rgba(0,0,0,.6); max-width: calc(100% - 32px); font-size: 14px; }
+  .nowplay .go { padding: 8px 16px; font-size: 14px; }
+
+  .tip { margin-top: 18px; color: var(--muted); font-size: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px 18px; }
+  .tip b { color: var(--text); }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 14px 14px 110px; } .top { margin-bottom: 22px; } .badge-top { display: none; }
+    .panel, .stagewrap, .progress { border-radius: 24px; padding: 14px; }
+    .glabel { min-width: 0; width: 100%; }
+    .controls .seg { display: flex; width: 100%; }
+    .controls .seg button { flex: 1; min-width: 0; padding: 8px 4px; font-size: 13.5px; }
+    #secSeg { flex-wrap: wrap; border-radius: 22px; gap: 2px; } #secSeg button { flex: 1 1 30%; white-space: nowrap; }
+    .keysel { width: 100%; }
+    .transport .tempo { width: 100%; justify-content: space-between; } .transport .go { flex: 1; }
+    canvas { height: 420px; } .card { padding: 10px 12px; } .card .v { font-size: 18px; }
+    /* phone: avatar + name in one row, the words and fragments use the full width below */
+    .coach { grid-template-columns: 64px 1fr; gap: 12px; padding: 14px; border-radius: 24px; align-items: center; } .coach-av svg, .av-photo { width: 64px; height: 64px; }
+    .coach-body { display: contents; } .coach-name { margin: 0; }
+    .coach-bubble, #coachPlaces, .ask { grid-column: 1 / -1; } .msg { max-width: 94%; }
+    .transport #askOpen { flex: 1; } .coach-bubble { padding: 12px 14px; font-size: 15px; }
+    .coach-bubble::before { left: 26px; top: -7px; transform: rotate(135deg); }
+    .tempo input { width: 110px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><span class="logo">♪</span>Тренажёр распевки</div>
+    <span class="badge-top">Бесплатно · без регистрации</span>
+  </header>
+
+  <h1 id="title">Тренажёр распевки</h1>
+  <p class="sub">Пой ноты, которые плывут по нотной дорожке, — на каждой подписано, какая это нота. Линия твоего голоса сразу покажет, попадаешь ли ты.</p>
+
+  <section class="panel controls">
+    <div class="group"><span class="glabel">Упражнение</span><div class="seg" id="secSeg"></div></div>
+    <div class="group" id="voiceGroup"><span class="glabel">Голос</span><div class="seg" id="voiceSeg"></div>
+      <div class="seg" id="levelSeg" title="Начинающие: без фальцета — парни не выше До4, девушки не выше До5"></div></div>
+    <div class="group" id="keyGroup"><span class="glabel" id="keyLabel">Тональность</span><select id="keySel" class="keysel"></select></div>
+    <div class="group" id="songBar" hidden><span class="glabel">Песня</span>
+      <select id="songSel" class="keysel"></select>
+      <label class="go songadd" id="songAdd">＋ Загрузить песню<input type="file" id="songFile" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac" hidden></label>
+      <select id="songKey" class="keysel" title="Тональность песни — определена сама, можно поправить"></select>
+      <select id="songShift" class="keysel" title="Сдвинуть песню выше или ниже под свой голос"></select>
+      <select id="songLang" class="keysel" title="Язык слов песни"><option value="russian">Слова: русский</option><option value="ukrainian">Слова: украинский</option><option value="english">Слова: английский</option></select>
+      <button class="ghost" id="songVoice" type="button">🎤 Голос певца: выкл</button>
+      <button class="ghost" id="songRedo" type="button" title="Обработать песню заново — после улучшений тренажёра ноты станут точнее">🔄 Пересчитать ноты</button>
+      <button class="ghost" id="songDel" type="button" title="Удалить песню">🗑</button>
+      <div class="muted" id="songInfo" hidden style="flex-basis:100%"></div>
+    </div>
+    <div class="songjob" id="songJob" hidden><div id="songJobText"></div><div class="sj-bar"><i id="songJobBar"></i></div>
+      <div class="muted" id="songJobNote">Всё считается на твоём устройстве — песня никуда не отправляется. Не закрывай страницу.</div></div>
+    <div class="about" id="about" hidden></div>
+    <div class="transport">
+      <label class="tempo">Темп <input type="range" id="bpm" min="40" max="120" step="1" value="78"> <b id="bpmV">78</b>&nbsp;<span id="bpmUnit">BPM</span>
+        <button type="button" id="bpmReset" title="Оригинальный темп">78</button></label>
+      <button class="go" id="go">▶ Начать</button>
+      <button class="stop" id="stop" hidden>■ Стоп</button>
+      <button class="stop" id="askOpen" type="button">💬 Вопрос учителю</button>
+    </div>
+  </section>
+
+  <section class="stagewrap">
+    <div class="now" id="nowLabel" hidden></div>
+    <div class="stage"><canvas id="cv"></canvas><div class="countin" id="countIn" hidden></div></div>
+  <div class="readout">
+    <div class="card"><div class="k">Нужно спеть</div><div class="v" id="needV">—</div></div>
+    <div class="card"><div class="k">Ты поёшь</div><div class="v" id="youV">—</div></div>
+    <div class="card"><div class="k">Точность</div><div class="v" id="devV">—</div></div>
+  </div>
+  <div class="legend">
+    <span class="zoom">Масштаб <button type="button" id="zoomOut" aria-label="Уменьшить">−</button><b id="zoomV">100%</b><button type="button" id="zoomIn" aria-label="Увеличить">+</button></span>
+    <span><span class="dot" style="background:var(--hit)"></span>в ноте (±35 центов, на коротких нотах ±50)</span>
+    <span><span class="dot" style="background:var(--high)"></span>выше</span>
+    <span><span class="dot" style="background:var(--low)"></span>ниже</span>
+  </div>
+  </section>
+  <div class="result" id="result"></div>
+  <div class="err" id="err"></div>
+  <section class="coach" id="coach" hidden>
+    <div class="coach-av" id="coachAv">
+      <!-- Антон in cartoon form: wavy dark hair swept back, white open-collar shirt -->
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <defs>
+          <radialGradient id="avBg" cx="50%" cy="38%" r="62%"><stop offset="0" stop-color="#0f3c40"/><stop offset="1" stop-color="#08090a"/></radialGradient>
+          <clipPath id="avClip"><circle cx="60" cy="60" r="58"/></clipPath>
+        </defs>
+        <circle cx="60" cy="60" r="58" fill="url(#avBg)" stroke="rgba(0,218,232,.35)"/>
+        <g clip-path="url(#avClip)"><g class="av-body">
+          <path d="M10 122c4-22 22-31 50-31s46 9 50 31z" fill="#f4f3ef"/>
+          <path d="M49 89l11 17 11-17" fill="#e6bb9b"/>
+          <path d="M46 88l7 18 7-12M74 88l-7 18-7-12" fill="none" stroke="#d6d4cc" stroke-width="2" stroke-linejoin="round"/>
+          <rect x="52" y="72" width="16" height="19" rx="6" fill="#e6bb9b"/>
+          <g fill="#2f221a"><path d="M35 48c-4 11-2 20 3 25 0-6 1-12 2-17zM85 48c4 11 2 20-3 25 0-6-1-12-2-17z"/></g>
+          <ellipse cx="38.5" cy="56" rx="3.5" ry="5.5" fill="#efc4a6"/><ellipse cx="81.5" cy="56" rx="3.5" ry="5.5" fill="#efc4a6"/>
+          <path d="M39 49c0-15 9-24 21-24s21 9 21 24c0 14-4 24-11 29-6 4-14 4-20 0-7-5-11-15-11-29z" fill="#f3d0b4"/>
+          <path d="M33 54c-4-21 8-37 28-37 19 0 31 14 28 34-2-6-5-10-10-12-1 5-5 8-10 9l2-7c-7 5-16 7-25 6-6 0-10 2-13 7z" fill="#2f221a"/>
+          <g fill="#2f221a"><path d="M34 51c-6 3-8 9-7 14 2-4 5-6 9-7zM86 49c6 3 8 9 7 14-2-4-5-6-9-7z"/>
+            <path d="M40 46c3-7 10-11 18-10-4 2-7 5-8 10zM50 44c4-6 11-9 19-7-5 2-8 4-10 9zM63 42c5-4 11-5 16-2-4 1-7 3-8 7z"/></g>
+          <path d="M38 31c8-9 22-11 34-6M44 25c10-5 22-4 31 3M52 36c8-2 16-3 23-1M33 47c3-6 6-9 11-11M85 44c-2-6-5-9-9-11" fill="none" stroke="#4e3a2c" stroke-width="1.5" stroke-linecap="round"/>
+          <g stroke="#2a1d16" stroke-width="2.6" stroke-linecap="round" fill="none"><path id="avBrowL" d="M45 44l10-1.5"/><path id="avBrowR" d="M65 42.5l10 1.5"/></g>
+          <g class="av-eyes"><ellipse cx="50.5" cy="50.5" rx="2.9" ry="3.1" fill="#3a2418"/><ellipse cx="69.5" cy="50.5" rx="2.9" ry="3.1" fill="#3a2418"/>
+            <circle cx="51.4" cy="49.5" r=".9" fill="#fff"/><circle cx="70.4" cy="49.5" r=".9" fill="#fff"/></g>
+          <path d="M60 51q-3 8 0 10h2.5" fill="none" stroke="#d3a586" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M52.5 63q7.5-3 15 0" fill="none" stroke="#6b5345" stroke-opacity=".35" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M54 75q6 2.5 12 0" fill="none" stroke="#6b5345" stroke-opacity=".3" stroke-width="2.6" stroke-linecap="round"/>
+          <path id="avSmile" d="M51.5 66q8.5 8 17 0" fill="#fff" stroke="#a24d48" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <ellipse id="avMouth" cx="60" cy="68" rx="6.5" ry="1" fill="#6b2328" opacity="0"/>
+        </g></g>
+      </svg>
+      <img class="av-photo" src="img/anton.png" alt="Антон" onerror="this.remove()">
+      <span class="av-note n1">♪</span><span class="av-note n2">♫</span><span class="av-note n3">♪</span>
+    </div>
+    <div class="coach-body">
+      <div class="coach-name">Учитель <button class="ghost" id="coachAgain">🔊 Ещё раз</button></div>
+      <div class="coach-bubble" id="coachText"></div>
+      <div id="coachPlaces"></div>
+      <div class="ask" id="ask">
+        <div class="ask-h">💬 Спроси учителя</div>
+        <div class="thread" id="askThread"></div>
+        <div class="chips" id="askSugg"></div>
+        <form class="ask-f" id="askForm" autocomplete="off">
+          <input id="askIn" placeholder="Например: как брать дыхание? почему ломается голос?" enterkeyhint="send">
+          <button class="go" type="submit">Спросить</button>
+        </form>
+      </div>
+    </div>
+  </section>
+  <section class="progress" id="progress">
+    <div class="phead">
+      <h2>Мой прогресс</h2>
+      <div class="seg" id="progScope"><button data-v="this" class="on">Это упражнение</button><button data-v="all">Все</button></div>
+    </div>
+    <div class="pnote">Каждый проход от 10 секунд сохраняется сам — даже если остановишь его на середине — с записью голоса, результатом и датой. Записи хранятся <b>только в этом браузере на этом устройстве</b> (на телефоне будет своя история). Чтобы перенести или не потерять — «Скачать мои записи», а на другом устройстве «Загрузить».</div>
+    <div id="attempts" class="attempts"></div>
+    <div class="pbtns">
+      <button class="ghost" id="exportBtn">⬇ Скачать мои записи</button>
+      <label class="ghost">⬆ Загрузить записи<input type="file" id="importIn" accept=".json,application/json" hidden></label>
+      <span class="muted" id="storageInfo"></span>
+    </div>
+    <div class="compare" id="compare" hidden>
+      <div class="phead"><h3 id="cmpTitle">Сравнение</h3><button class="ghost" id="cmpClose">✕</button></div>
+      <div class="legend"><span><span class="dot" style="background:rgba(255,255,255,.8)"></span><span id="cmpA"></span></span><span><span class="dot" style="background:var(--accent)"></span><span id="cmpB"></span></span></div>
+      <canvas id="cmpCv" class="cmpcv"></canvas>
+      <div class="pbtns"><button class="ghost" id="cmpPlayA">▶ Послушать первую</button><button class="ghost" id="cmpPlayB">▶ Послушать вторую</button></div>
+    </div>
+  </section>
+
+  <div class="modal" id="hint" hidden><div class="modal-box">
+    <h3>🎧 Сначала — нота-ориентир</h3>
+    <p>Сейчас прозвучит <b>первая нота упражнения</b> — запомни её и ориентируйся на неё. Сразу за ней отсчёт: <b>раз, два, три, четыре</b> — и поехали.</p>
+    <p class="hint-note" id="hintNote"></p>
+    <div class="pbtns"><button class="go" id="hintOk">Окей</button><button class="ghost" id="hintNo">Отмена</button></div>
+  </div></div>
+
+  <div class="nowplay" id="nowPlay" hidden><span id="nowPlayText"></span><button class="go" id="nowPlayStop">■ Стоп</button></div>
+
+  <div class="tip">🎧 <b>Надень наушники</b> — иначе микрофон слышит пианино. Лучше проводные; с Bluetooth говори в микрофон компьютера/телефона, а не наушников (задержку наушников тренажёр учтёт сам после первого прохода). Начало ноты не считается (даём 0,1 с на атаку). Засчитывается только точная нота в нужной октаве — если поёшь на октаву выше или ниже, тренажёр подскажет.</div>
+</div>
+
+<script>
+let NOTES = [];
+// Note names spelled by the key's scale degrees (same rules as скрипты/spelling.py):
+// Bb minor → Ре♭ (not До♯), Gb major → До♭, G# minor raised VII → Фа× (double sharp).
+const LETTERS = ["C", "D", "E", "F", "G", "A", "B"], NATURAL = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const RU_L = { C: "До", D: "Ре", E: "Ми", F: "Фа", G: "Соль", A: "Ля", B: "Си" };
+const ACC = { "-2": "♭♭", "-1": "♭", "0": "", "1": "♯", "2": "×" };   // × = double sharp (renders in every font)
+const STEPS = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10] };
+const mod = (a, n) => ((a % n) + n) % n;
+let keyName = "C major";
+function noteName(midi) {
+  midi = Math.round(midi);
+  const [root, mode] = keyName.split(" ");
+  const l0 = LETTERS.indexOf(root[0]);
+  const tpc = mod(NATURAL[root[0]] + (root.split("#").length - 1) - (root.slice(1).split("b").length - 1), 12);
+  const pc = mod(midi, 12);
+  // notes of the key keep their degree letter; a note outside the key prefers a natural
+  // letter (До, not Си♯), then sharps in sharp keys / flats in flat keys
+  const flatKey = root.includes("b") || (root === "F" && mode === "major") || ["D", "G", "C", "F"].includes(root) && mode === "minor";
+  let best = null;
+  for (let deg = 0; deg < 7; deg++) {
+    const d = mod(pc - (tpc + STEPS[mode][deg]) + 6, 12) - 6;
+    const letter = LETTERS[(l0 + deg) % 7], acc = mod(pc - NATURAL[letter] + 6, 12) - 6;
+    const rank = d === 0 ? 0 : (mode === "minor" && (deg === 5 || deg === 6) && d === 1 ? 1
+      : 10 + Math.abs(acc) * 10 + Math.abs(d) + (acc !== 0 && (acc < 0) !== flatKey ? 1 : 0));
+    if (!best || rank < best[0]) best = [rank, deg];
+  }
+  const L = LETTERS[(l0 + best[1]) % 7];
+  const acc = mod(pc - NATURAL[L] + 6, 12) - 6;
+  return (I18N.en() ? L : RU_L[L]) + ACC[acc] + (Math.floor((midi - acc) / 12) - 1);
+}
+// cents counted as "in tune": ±35 ¢ on a held note; on a short one (staccato, quick leaps — under 0.5 s
+// as sung) the voice has no time to settle, so up to ±50 ¢, halfway to the next note, still counts
+const TOL = 35, TOL_SHORT = 50;
+const tolOf = n => (n && (n[1] - n[0]) / rate < 0.5 ? TOL_SHORT : TOL);
+let LO = 45, HI = 63;         // visible MIDI range (set per exercise)
+const PX_PER_S = 270, HEAD = 0.25;    // wide, easy-to-read note bars
+// zoom of the note lane (the student's choice, remembered): >1 = bigger, longer bars; <1 = more fits on screen
+let ZOOM = 1; try { ZOOM = Math.min(2.5, Math.max(0.5, +localStorage.getItem("zoom") || 1)); } catch (e) {}
+const pxPerS = () => PX_PER_S * ZOOM;
+
+const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+// Safari < 16 has no canvas roundRect: fall back to a plain rectangle
+if (!CanvasRenderingContext2D.prototype.roundRect) CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h) { this.rect(x, y, w, h); };
+const needV = document.getElementById("needV"), youV = document.getElementById("youV"), devV = document.getElementById("devV");
+const stopBtn = document.getElementById("stop");
+const goBtn = document.getElementById("go"), result = document.getElementById("result"), err = document.getElementById("err");
+
+
+// Both versions play together; the toggle only chooses which one you hear.
+// The browser's own time-stretch changes tempo without changing pitch.
+let BASE_BPM = 78;
+let rate = 1;
+class MediaDual {
+  constructor(files) {
+    this.els = {}; this.track = files[0]; this.rate = 1; this.muted = false; this.sync = null;
+    for (const f of files) {
+      const el = new Audio(f); el.preload = "auto"; el.volume = 0; el.muted = true;   // iPhone ignores volume: muted is what silences
+      el.preservesPitch = el.mozPreservesPitch = el.webkitPreservesPitch = true;
+      this.els[f] = el;
+    }
+  }
+  get main() { return this.els[this.track]; }
+  get all() { return Object.values(this.els); }
+  // iPhone Safari loads only a little of a file before it is played and may never fire "canplaythrough":
+  // enough data to start ("canplay") is ready, and after 6 s we go anyway — play() keeps loading the rest
+  ready() {
+    return Promise.all(this.all.map(el => el.readyState >= 3 ? 0 : new Promise((ok, bad) => {
+      const done = () => { clearTimeout(t); ok(); }, t = setTimeout(done, 6000);
+      el.addEventListener("canplay", done, { once: true }); el.addEventListener("canplaythrough", done, { once: true });
+      el.addEventListener("error", () => { clearTimeout(t); bad(new Error("не загрузился звук")); }, { once: true });
+      if (el.readyState === 0 && el.networkState !== 2) el.load();
+    })));
+  }
+  setTrack(name) {
+    const t = this.main.currentTime; this.track = name;
+    for (const [k, el] of Object.entries(this.els)) {
+      if (k === name && Math.abs(el.currentTime - t) > 0.03) el.currentTime = t;
+      const on = k === name && !this.muted; el.volume = on ? 1 : 0; el.muted = !on;
+    }
+  }
+  setRate(r) { this.rate = r; this.all.forEach(el => el.playbackRate = r); }
+  get paused() { return this.main.paused; }
+  get ended() { return this.main.ended; }
+  get currentTime() { return this.main.currentTime; }
+  set currentTime(t) { this.all.forEach(el => el.currentTime = t); }
+  async play() {
+    this.all.forEach(el => el.playbackRate = this.rate);
+    await Promise.all(this.all.map(el => el.play()));
+    this.setTrack(this.track);
+    clearInterval(this.sync);   // keep the silent copy aligned (its seeks are inaudible)
+    this.sync = setInterval(() => { const t = this.main.currentTime; for (const [k, el] of Object.entries(this.els)) if (k !== this.track && Math.abs(el.currentTime - t) > 0.05) el.currentTime = t; }, 1000);
+  }
+  pause() { this.all.forEach(el => el.pause()); clearInterval(this.sync); }
+  // iPhone Safari plays a media element only from a tap; one play() inside a tap unlocks it for good
+  unlock() { for (const el of this.all) { if (!el.paused) continue; try { const p = el.play(); el.pause(); p && p.catch(() => {}); } catch (e) {} } }
+}
+// Called first thing in every tap that leads to sound (Начать, Окей, Продолжить, Спеть этот кусок):
+// on iPhone the count-in takes a few seconds, and after that a play() no longer counts as the tap —
+// the run would hang silent. Waking the audio context and the players right in the tap avoids it.
+// iPhone turns playback down while the microphone is on: there the exercise sound is lifted
+// (a limiter keeps the louder piano from distorting)
+const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+let speaker = null;
+function toSpeakers() {
+  if (speaker) return speaker;
+  const g = actx.createGain(); g.gain.value = IOS ? 3 : 1;
+  if (IOS) { const lim = actx.createDynamicsCompressor(); lim.threshold.value = -6; lim.knee.value = 4; lim.ratio.value = 12; lim.attack.value = 0.003; lim.release.value = 0.2; g.connect(lim); lim.connect(actx.destination); }
+  else g.connect(actx.destination);
+  return speaker = g;
+}
+function unlockAudio() {
+  if (actx) {
+    actx.resume().catch(() => {});
+    try { const b = actx.createBuffer(1, 1, actx.sampleRate), n = actx.createBufferSource(); n.buffer = b; n.connect(actx.destination); n.start(); } catch (e) {}
+  }
+  if (audio) audio.unlock();
+}
+
+const bpmIn = document.getElementById("bpm"), bpmV = document.getElementById("bpmV");
+function setBpm(v) {
+  v = Math.max(40, Math.min(120, Math.round(v))); bpmIn.value = v; bpmV.textContent = v; rate = v / BASE_BPM;
+  if (audio) audio.setRate(rate);
+
+}
+bpmIn.oninput = () => setBpm(+bpmIn.value);
+document.getElementById("bpmReset").onclick = () => setBpm(BASE_BPM);
+
+// ---- exercise picker: section · voice · key ----
+const C = window.CATALOG;
+// «Курс»: Антон's own warm-ups (course.js) — one exercise per item, sung on syllables
+const COURSE = window.COURSE || null;
+if (COURSE) { C.sections.course = I18N.en() ? "Course" : "Курс"; Object.assign(C.items, COURSE.items); }
+C.sections.songs = I18N.en() ? "My songs" : "Мои песни";
+C.items["songs/"] = { audio: "", bpm: 100, notes: [], empty: true };   // shown until a song is added
+let sel = { sec: "scales", voice: "girls", level: "beginner", key: "01", ex: COURSE ? COURSE.exercises[0].id : "", song: "" }, current = null;
+try { Object.assign(sel, JSON.parse(localStorage.getItem("sel") || "{}")); } catch (e) {}
+function seg(id, options, key) {
+  const box = document.getElementById(id); box.innerHTML = "";
+  for (const [v, label] of Object.entries(options)) {
+    const b = document.createElement("button"); b.textContent = label; b.className = sel[key] === v ? "on" : "";
+    b.onclick = () => { sel[key] = v; choose(); }; box.appendChild(b);
+  }
+}
+const keySel = document.getElementById("keySel");
+let keySelFor = null;
+function fillKeySel() {
+  const course = sel.sec === "course";
+  if (keySelFor === course) return;
+  keySelFor = course; keySel.innerHTML = "";
+  const opts = course ? COURSE.exercises.map(e => [e.id, e.title]) : C.keys.map(k => [k.id, I18N.en() ? k.ru : `${k.ru} (${k.name})`]);
+  for (const [v, t] of opts) { const o = document.createElement("option"); o.value = v; o.textContent = t; keySel.appendChild(o); }
+  document.getElementById("keyLabel").textContent = course ? "Распевка" : "Тональность";
+}
+keySel.onchange = () => { if (sel.sec === "course") sel.ex = keySel.value; else sel.key = keySel.value; choose(); };
+const nowLabel = document.getElementById("nowLabel");
+function showLabel(t) {
+  const ls = (current && current.labels) || [];
+  if (!ls.length) { nowLabel.hidden = true; return; }
+  let cur = ls[0];
+  for (const l of ls) if (l[0] <= t + 0.05) cur = l;
+  nowLabel.hidden = false;
+  nowLabel.innerHTML = `<span>Сейчас:</span>${cur[1]}`;
+}
+function choose() {
+  // saved settings may be old or broken (e.g. after a site update): fall back to defaults
+  if (!C.sections[sel.sec]) sel.sec = "scales";
+  if (!C.voices[sel.voice]) sel.voice = "girls";
+  if (!C.levels[sel.level]) sel.level = "beginner";
+  if (!C.keys.some(k => k.id === sel.key)) sel.key = C.keys[0].id;
+  if (COURSE && !COURSE.exercises.some(e => e.id === sel.ex)) sel.ex = COURSE.exercises[0].id;
+  stopAll(); audio && audio.pause(); audio = null;
+  // warm-ups are the same for both levels; chords & intervals have a range per level
+  const course = sel.sec === "course", levelled = sel.sec === "chords" || sel.sec === "intervals", songs = sel.sec === "songs";
+  if (songs && !C.items["songs/" + sel.song]) sel.song = Songs.list[0] ? String(Songs.list[0].id) : "";
+  current = C.items[exKey()];
+  NOTES = current.notes;
+  const ms = NOTES.length ? NOTES.map(n => n[2]) : [57, 69]; LO = Math.min(...ms) - 1.5; HI = Math.max(...ms) + 1.5;
+  current.wide = HI - LO > 20;          // long course warm-ups climb far: the lane then follows the notes
+  vLO = null;
+  fillKeySel();
+  const about = document.getElementById("about"), ex = course && COURSE.exercises.find(e => e.id === sel.ex);
+  about.hidden = !ex;
+  if (ex) about.innerHTML = `<details${innerWidth > 640 ? " open" : ""}><summary>Как выполнять</summary>${ex.about.map(t => `<p>${esc(t)}</p>`).join("")}</details>`;
+  BASE_BPM = current.bpm; document.getElementById("bpmReset").textContent = BASE_BPM; setBpm(BASE_BPM);
+  seg("secSeg", C.sections, "sec"); seg("voiceSeg", C.voices, "voice"); seg("levelSeg", C.levels, "level"); keySel.value = course ? sel.ex : sel.key;
+  document.getElementById("levelSeg").hidden = !levelled;
+  document.getElementById("voiceGroup").hidden = document.getElementById("keyGroup").hidden = songs;
+  document.getElementById("songBar").hidden = !songs;
+  document.getElementById("bpmUnit").textContent = songs ? "%" : "BPM";
+  goBtn.disabled = !NOTES.length;
+  if (songs) Songs.renderBar();
+  const k = C.keys.find(x => x.id === sel.key);
+  keyName = songs ? (current.keyName || "C major") : course ? "C major" : k.name;   // the course moves through many keys: neutral spelling
+  const songKey = songs && current.keyName && C.keys.find(x => x.name === current.keyName);
+  document.getElementById("title").textContent = songs ? (current.title ? `Песня: ${current.title}` + (songKey ? ` · ${songKey.ru}` : "") : "Мои песни")
+    : `${C.sections[sel.sec]}: ${course ? ex.title : k.ru} · ${C.voices[sel.voice].toLowerCase()}` + (levelled ? ` · ${C.levels[sel.level].toLowerCase()}` : "");
+  try { localStorage.setItem("sel", JSON.stringify(sel)); } catch (e) {}
+  showLabel(0);
+  draw(0);
+  if (typeof Progress !== "undefined") Progress.render();
+}
+
+let actx, audio, analyser, buf, trail = [], stats, running = false, frames = [], micStream = null;
+// extra delay of this person's headphones (Bluetooth adds 150–300 ms); learned after each run
+let userLag = 0; try { userLag = (+localStorage.getItem("lagMs") || 0) / 1000; } catch (e) {}
+
+
+function resize() {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  cv.width = r.width * dpr; cv.height = r.height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener("resize", resize); resize();
+
+// YIN pitch detector (also leaves the frame's loudness in lastRms — the teacher uses it for breath tips)
+let lastRms = 0;
+function detect(data, sr) {
+  let rms = 0; for (const x of data) rms += x * x; rms = lastRms = Math.sqrt(rms / data.length);
+  if (rms < 0.01) return null;
+  // halve the sample rate first (voice needs far less than 44–48 kHz): ~4× less work, same accuracy
+  const topHz = 440 * 2 ** ((HI + 2 - 69) / 12);       // highest note this exercise can need (+ margin)
+  if (sr >= 32000 && sr / 2 / topHz >= 40) {           // keep ≥40 samples per period after halving
+    const half = new Float32Array(data.length >> 1);
+    for (let i = 0; i < half.length; i++) half[i] = (data[2 * i] + data[2 * i + 1]) * 0.5;
+    data = half; sr = sr / 2;
+  }
+  const minT = Math.floor(sr / 1800), maxT = Math.floor(sr / 65), N = data.length - maxT;   // 65 Hz … 1800 Hz
+  const d = new Float32Array(maxT + 1);
+  for (let t = minT; t <= maxT; t++) { let s = 0; for (let i = 0; i < N; i++) { const v = data[i] - data[i + t]; s += v * v; } d[t] = s; }
+  let run = 0; const cm = new Float32Array(maxT + 1);
+  for (let t = 1; t <= maxT; t++) { run += d[t]; cm[t] = t < minT ? 1 : d[t] * t / (run || 1); }
+  let tau = -1;
+  for (let t = minT; t < maxT; t++) if (cm[t] < 0.12) { while (t + 1 < maxT && cm[t + 1] < cm[t]) t++; tau = t; break; }
+  if (tau < 0) return null;
+  const a = cm[tau - 1], b = cm[tau], c = cm[tau + 1];
+  const shift = (a + c - 2 * b) ? (a - c) / (2 * (a + c - 2 * b)) : 0;
+  return sr / (tau + shift);
+}
+const toMidi = f => 69 + 12 * Math.log2(f / 440);
+
+function targetAt(t) { return NOTES.find(([s, e]) => t >= s && t < e) || null; }
+// Strict octave: singing the same note an octave up/down is NOT a hit.
+// Only a lone detector glitch (one frame jumping ~12 semitones away from the
+// last few frames) is pulled back; a real octave change persists and stays.
+let recent = [];
+function despike(m, t) {
+  recent = recent.filter(r => Math.abs(t - r.t) < 0.12);   // only this moment of this run
+  if (recent.length >= 3) {
+    const med = recent.map(r => r.m).sort((a, b) => a - b)[Math.floor(recent.length / 2)];
+    const jump = med - m;
+    if (Math.abs(Math.abs(jump) - 12) < 1.0) { recent.push({ t, m }); return m + 12 * Math.round(jump / 12); }
+  }
+  recent.push({ t, m });
+  return m;
+}
+
+// visible pitch range: the whole exercise, or (for wide ones) the notes around now, easing smoothly
+let vLO = null, vHI = null, lastDraw = 0;
+function viewRange(now) {
+  if (!current) return [LO, HI];
+  const full = HI - LO;
+  if (!current.wide && ZOOM <= 1) { const pad = (full / ZOOM - full) / 2; return [LO - pad, HI + pad]; }   // zoomed out: more rows
+  // follow the notes around now; zoomed in, fewer rows are shown, so the bars get thicker
+  const ahead = 7 / ZOOM, behind = 3 / ZOOM;
+  const near = NOTES.filter(([s, e]) => e > now - behind && s < now + ahead).map(n => n[2]);
+  const lo = near.length ? Math.min(...near) - 1.5 : LO, hi = near.length ? Math.max(...near) + 1.5 : HI;
+  const span = Math.max(hi - lo, (current.wide ? 10 : full) / ZOOM, 6), mid = (lo + hi) / 2, t = performance.now();
+  const ease = vLO != null && t - lastDraw < 120 ? 0.06 : 1;
+  lastDraw = t;
+  vLO = vLO == null ? mid - span / 2 : vLO + (mid - span / 2 - vLO) * ease;
+  vHI = vHI == null ? mid + span / 2 : vHI + (mid + span / 2 - vHI) * ease;
+  return [vLO, vHI];
+}
+
+function draw(now) {
+  const [LO, HI] = viewRange(now);
+  const W = cv.clientWidth, H = cv.clientHeight, rowH = H / (HI - LO + 1);
+  const y = m => H - (m - LO + 0.5) * rowH;
+  const x = t => W * HEAD + (t - now) * pxPerS();
+  ctx.clearRect(0, 0, W, H);
+  // grid rows
+  for (let m = Math.floor(LO); m <= Math.ceil(HI); m++) {
+    const white = [0, 2, 4, 5, 7, 9, 11].includes(((m % 12) + 12) % 12);
+    ctx.fillStyle = white ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.0)";
+    ctx.fillRect(0, y(m) - rowH / 2, W, rowH);
+    if (white) { ctx.fillStyle = m % 12 === 0 ? "rgba(255,255,255,.6)" : "rgba(255,255,255,.3)"; ctx.font = "11px -apple-system, sans-serif"; ctx.fillText(noteName(m), 6, y(m) + 4); }
+  }
+  // target bars
+  NOTES.forEach(([s, e, m], i) => {
+    const x0 = x(s), x1 = x(e);
+    if (x1 < 0 || x0 > W) return;
+    const st = stats && stats[i];
+    let fill = "#1d1f23", edge = "#33363c";
+    if (st && st.done) { fill = st.hit ? "rgba(0,218,232,.26)" : "rgba(255,92,108,.22)"; edge = st.hit ? "#00dae8" : "#ff5c6c"; }
+    ctx.fillStyle = fill; ctx.strokeStyle = edge; ctx.lineWidth = 1.5;
+    const r = 6, h = rowH * 0.88, top = y(m) - h / 2, w = Math.max(4, x1 - x0 - 3);
+    ctx.beginPath(); ctx.roundRect(x0 + 1, top, w, h, r); ctx.fill(); ctx.stroke();
+    // note name inside the bar
+    ctx.fillStyle = st && st.done ? "#ffffff" : "#fcfcfd";
+    ctx.font = `600 ${Math.min(20, Math.max(12, h * 0.6))}px -apple-system, sans-serif`;
+    ctx.textBaseline = "middle";
+    const word = current && current.lyrics && current.lyrics[i];
+    if (word) {                                      // the sung word under its note
+      ctx.save(); ctx.fillStyle = "#ffe680"; ctx.font = "600 18px Manrope, sans-serif"; ctx.textBaseline = "top";
+      ctx.fillText(word, x0 + 2, top + h + 3); ctx.restore();
+    }
+    const syl = current && current.syllables && current.syllables[i];
+    if (syl) { if (w > 16) ctx.fillText(I18N.syl(syl), x0 + 8, y(m) + 0.5); }   // the course: sing the syllable
+    else if (w > 34) ctx.fillText(noteName(m), x0 + 10, y(m) + 0.5);
+    ctx.textBaseline = "alphabetic";
+  });
+  // cue notes: listen-only starting pitch before each chord / interval (not scored)
+  for (const [s0, e0, m] of (current && current.cues) || []) {
+    const x0 = x(s0), x1 = x(e0); if (x1 < 0 || x0 > W) continue;
+    const h = rowH * 0.8, top = y(m) - h / 2, w = Math.max(4, x1 - x0 - 3);
+    ctx.setLineDash([4, 3]); ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.fillStyle = "rgba(255,255,255,.06)"; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.roundRect(x0 + 1, top, w, h, 6); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.font = `500 ${Math.min(12, Math.max(9, h * 0.55))}px Manrope, sans-serif`; ctx.textBaseline = "middle";
+    if (w > 70) ctx.fillText(I18N.t("ориентир") + " · " + noteName(m), x0 + 9, y(m) + 0.5); else if (w > 30) ctx.fillText("♪", x0 + 8, y(m) + 0.5);
+    ctx.textBaseline = "alphabetic";
+  }
+  // chord / interval names above where each one starts
+  for (const [t, text] of (current && current.labels) || []) {
+    const lx = x(t);
+    if (lx < -400 || lx > W) continue;
+    ctx.strokeStyle = "rgba(255,255,255,.18)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx, H); ctx.stroke();
+    ctx.fillStyle = "#fcfcfd"; ctx.font = "600 13px -apple-system, sans-serif"; ctx.textBaseline = "top";
+    ctx.fillText(I18N.t(text), lx + 6, 6); ctx.textBaseline = "alphabetic";
+  }
+  // playhead
+  ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(W * HEAD, 0); ctx.lineTo(W * HEAD, H); ctx.stroke();
+  // the original singer's line («Мои песни»): slides, vibrato and runs as they were sung
+  if (current && current.line) {
+    const L = current.line; ctx.strokeStyle = "rgba(255,255,255,.32)"; ctx.lineWidth = 2; ctx.lineCap = "round";
+    let lo = 0, hi = L.length;                                // binary search the visible window
+    const t0 = now - W * HEAD / pxPerS(), t1 = now + W * (1 - HEAD) / pxPerS();
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (L[mid][0] < t0) lo = mid + 1; else hi = mid; }
+    ctx.beginPath(); let pen = false, last = null;
+    for (let i = lo; i < L.length && L[i][0] <= t1; i++) {
+      const [t, m] = L[i];
+      if (m == null) { pen = false; continue; }
+      if (pen && Math.abs(m - last) < 2.5) ctx.lineTo(x(t), y(m)); else ctx.moveTo(x(t), y(m));   // a leap is a detection glitch: lift the pen
+      pen = true; last = m;
+    }
+    ctx.stroke();
+  }
+  // pitch trail
+  for (let i = 1; i < trail.length; i++) {
+    const p = trail[i - 1], q = trail[i];
+    if (q.t - p.t > 0.08 || q.m == null || p.m == null) continue;
+    ctx.strokeStyle = q.c; ctx.lineWidth = 4; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(x(p.t), y(p.m)); ctx.lineTo(x(q.t), y(q.m)); ctx.stroke();
+  }
+}
+
+let lastNow = 0, ticker = null;
+// Short notes (staccato, quick leaps) get a short attack allowance and need fewer clean frames:
+// a 0.35 s note used to lose 0.15 s to attack/release and then miss the 8-frame minimum.
+const attackOf = (s, e) => Math.min(0.1 * rate, (e - s) * 0.25), releaseOf = (s, e) => Math.min(0.05 * rate, (e - s) * 0.15);
+const minFrames = (s, e) => Math.max(3, Math.min(8, Math.floor((e - s) / rate * 0.6 / 0.02)));
+// analysis runs on a timer so it keeps listening even if the tab is hidden; drawing uses rAF
+function tick() {
+  if (!running) return;
+  // an ended track also reports "paused" — check this first; a practised fragment ends at its own end
+  if (audio.ended || (segRun && audio.currentTime > segRun.e)) { finish(); return; }
+  if (audio.paused) return;
+  const lat = (actx.outputLatency || 0) + (actx.baseLatency || 0);
+  const base = audio.currentTime - (lat + buf.length / actx.sampleRate / 2) * rate;   // track time of what is being sung
+  const now = base - userLag * rate;                                                      // ...as heard through headphones
+  analyser.getFloatTimeDomainData(buf);
+  const f = detect(buf, actx.sampleRate);
+  const tgt = targetAt(now);
+  let m = f ? despike(toMidi(f), base) : null, color = "#7b8089";
+  frames.push({ t: base, m, a: lastRms });
+  if (m != null && tgt) {
+    const cents = (m - tgt[2]) * 100;
+    const octave = Math.abs(Math.abs(cents) - 1200) < 60;
+    const tol = tolOf(tgt);
+    color = Math.abs(cents) <= tol ? "#00dae8" : cents > 0 ? "#ffb547" : "#a78bfa";
+    const i = NOTES.indexOf(tgt);
+    if (now > tgt[0] + attackOf(tgt[0], tgt[1]) && now < tgt[1] - releaseOf(tgt[0], tgt[1])) { stats[i].n++; if (Math.abs(cents) <= tol) stats[i].ok++; }
+    youV.textContent = noteName(m);
+    devV.textContent = Math.abs(cents) <= tol ? "✓ в ноте"
+      : octave ? (cents > 0 ? "↑ на октаву выше" : "↓ на октаву ниже")
+      : (cents > 0 ? "▲ +" : "▼ −") + Math.round(Math.abs(cents)) + "¢";
+    devV.style.color = color;
+  } else if (m != null) { youV.textContent = noteName(m); devV.textContent = "—"; devV.style.color = ""; }
+  else { youV.textContent = "—"; devV.textContent = "—"; devV.style.color = ""; }
+  const cue = !tgt && ((current && current.cues) || []).find(([s0, e0]) => now >= s0 && now < e0 + 0.9);
+  const sylNow = tgt && ((current.syllables && current.syllables[NOTES.indexOf(tgt)]) || (current.lyrics && current.lyrics[NOTES.indexOf(tgt)]));
+  needV.textContent = tgt ? (sylNow ? `«${sylNow}» ${noteName(tgt[2])}` : noteName(tgt[2])) : cue ? "слушай: " + noteName(cue[2]) : "пауза";
+  showLabel(now);
+  trail.push({ t: now, m, c: color }); while (trail.length && trail[0].t < now - 4 * rate) trail.shift();
+  NOTES.forEach(([s, e], i) => { if (!stats[i].done && now > e && (!segRun || inSeg(segRun, i))) { stats[i].done = true; stats[i].hit = stats[i].n >= minFrames(s, e) && stats[i].ok / stats[i].n >= 0.5; } });
+  lastNow = now;
+  if (audio.ended) finish();
+}
+function paint() { if (!running) return; draw(lastNow); requestAnimationFrame(paint); }
+
+// score a whole run for a given headphone delay
+function score(lag) {
+  const st = NOTES.map(() => ({ n: 0, ok: 0 }));
+  for (const fr of frames) {
+    if (fr.m == null) continue;
+    const t = fr.t - lag, i = NOTES.findIndex(([s, e]) => t > s && t < e);
+    if (i < 0) continue;
+    st[i].n++; if (Math.abs((fr.m - NOTES[i][2]) * 100) <= tolOf(NOTES[i])) st[i].ok++;
+  }
+  const hits = st.map((x, i) => x.n >= minFrames(NOTES[i][0], NOTES[i][1]) && x.ok / x.n >= 0.5);
+  hits.inTune = st.reduce((a, x) => a + x.ok, 0);   // total in-tune frames: sensitive to the delay
+  return hits;
+}
+
+function finish() {
+  clearInterval(ticker);
+  running = false; goBtn.disabled = false; goBtn.textContent = "↻ Ещё раз"; stopBtn.hidden = true;
+  if (segRun) return finishSegment();
+  // find the delay that best lines the voice up with the notes (0–500 ms)
+  let best = { lag: 0, hits: score(0) };
+  for (let ms = 10; ms <= 500; ms += 10) {
+    const h = score(ms / 1000 * rate);          // frames are in track time
+    if (h.inTune > best.hits.inTune * 1.01) best = { lag: ms / 1000, hits: h };   // prefer smaller delay on ties
+  }
+  userLag = best.lag; try { localStorage.setItem("lagMs", Math.round(userLag * 1000)); } catch (e) {}
+  best.hits.forEach((h, i) => { stats[i].hit = h; stats[i].done = true; });
+  draw(audio.currentTime);
+  const hit = stats.filter(s => s.hit).length;
+  const pct = Math.round(100 * hit / NOTES.length);
+  result.innerHTML = `<b>Попадание: ${hit} из ${NOTES.length} нот (${pct}%)</b><br>` +
+    `<span style="color:var(--muted);font-size:13px">Задержка наушников: ${Math.round(userLag * 1000)} мс — учтена автоматически.</span>`;
+  result.classList.add("show");
+  const issues = analyze(userLag * rate, () => true), tech = technique(userLag * rate, () => true);
+  Progress.saveRun({ pct, hit, total: NOTES.length, lagTrack: userLag * rate })
+    .catch(() => null).then(a => Coach.show({ pct, issues, tech, attempt: a }));
+}
+
+// one fragment practised on its own: scored like a run, not saved to progress
+function finishSegment() {
+  const g = segRun; segRun = null; audio.pause();
+  const lag = userLag * rate, hits = score(lag);
+  const idx = NOTES.map((n, i) => i).filter(i => inSeg(g, i));
+  idx.forEach(i => { stats[i].hit = hits[i]; stats[i].done = true; });
+  draw(lastNow);
+  const hit = idx.filter(i => hits[i]).length, pct = Math.round(100 * hit / idx.length);
+  result.innerHTML = `<b>${esc(g.title)}: ${hit} из ${idx.length} нот (${pct}%)</b><br>` +
+    `<span style="color:var(--muted);font-size:13px">Отдельный кусок — в «Мой прогресс» не сохраняется. Всё упражнение целиком — кнопка «↻ Ещё раз».</span>`;
+  result.classList.add("show");
+  Coach.show({ pct, issues: analyze(lag, i => inSeg(g, i)), tech: technique(lag, i => inSeg(g, i)), attempt: null });
+}
+
+// ---- what went wrong: a per-note summary for the teacher ----
+// Fragments: a chord / interval (from its label) or, in the warm-ups, a phrase between rests.
+let segRun = null;      // the fragment being practised, if any: { from, s, e, title }
+const inSeg = (g, i) => NOTES[i][0] >= g.s - 0.01 && NOTES[i][0] < g.e;
+function segments() {
+  const ls = (current && current.labels) || [];
+  if (ls.length) return ls.map(([t, title], k) => ({ s: t, e: k + 1 < ls.length ? ls[k + 1][0] : NOTES[NOTES.length - 1][1] + 0.5, title, lead: 0 }));
+  const out = [];
+  NOTES.forEach(([s, e], i) => {
+    const name = current && current.syllables ? `Повтор ${out.length + 1} · от ${noteName(NOTES[i][2])}` : `Фраза ${out.length + 1}`;
+    if (!i || s - NOTES[i - 1][1] > 0.35) out.push({ s, e, title: name, lead: Math.min(1.5, i ? s - NOTES[i - 1][1] : s) });
+    out[out.length - 1].e = e + 0.3;
+  });
+  return out;
+}
+// every missed note gets one type: silent / octaveUp / octaveDown / flat / sharp / late / unstable
+function analyze(lagTrack, active) {
+  const per = NOTES.map(() => []);
+  for (const fr of frames) {
+    if (fr.m == null) continue;
+    const t = fr.t - lagTrack, i = NOTES.findIndex(([s, e]) => t > s + attackOf(s, e) && t < e - releaseOf(s, e));
+    if (i >= 0) per[i].push({ t: t - NOTES[i][0], c: (fr.m - NOTES[i][2]) * 100 });
+  }
+  const median = a => a.slice().sort((x, y) => x - y)[a.length >> 1];
+  const okShare = (a, tol = TOL) => a.length ? a.filter(x => Math.abs(x.c) <= tol).length / a.length : 0;
+  return NOTES.map(([s, e], i) => {
+    if (!active(i) || (stats && stats[i] && stats[i].hit)) return null;
+    const p = per[i];
+    if (p.length < Math.max(2, minFrames(s, e) >> 1)) return { i, type: "silent", sev: 50 };
+    const c = median(p.map(x => x.c));
+    if (Math.abs(c - 1200) < 80) return { i, type: "octaveUp", c, sev: 100 };
+    if (Math.abs(c + 1200) < 80) return { i, type: "octaveDown", c, sev: 100 };
+    const tol = tolOf(NOTES[i]);
+    if (c < -tol) return { i, type: "flat", c, sev: Math.min(-c, 300) };
+    if (c > tol) return { i, type: "sharp", c, sev: Math.min(c, 300) };
+    const half = (e - s) / 2;
+    if (okShare(p.filter(x => x.t < half), tol) < 0.35 && okShare(p.filter(x => x.t >= half), tol) >= 0.5) return { i, type: "late", c, sev: 40 };
+    return { i, type: "unstable", c, sev: 35 };
+  }).filter(Boolean);
+}
+// main mistake (by total severity) and the worst fragments
+function report(issues) {
+  const segs = segments(), w = {}, bySeg = new Map();
+  for (const x of issues) {
+    w[x.type] = (w[x.type] || 0) + x.sev;
+    const k = segs.findIndex(g => inSeg(g, x.i)); if (k < 0) continue;
+    if (!bySeg.has(k)) bySeg.set(k, []); bySeg.get(k).push(x);
+  }
+  const weight = list => list.reduce((a, x) => a + x.sev, 0);
+  const places = [...bySeg.entries()].sort((a, b) => weight(b[1]) - weight(a[1])).slice(0, 3)
+    .map(([k, list]) => ({ seg: segs[k], issues: list }));
+  return { types: Object.keys(w).sort((a, b) => w[b] - w[a]), places };
+}
+
+// ---- technique: what the pitch line shows beyond right / wrong notes ----
+// vibrato (rate, width), straightness, scoops and late onsets, notes sagging or fading
+// at the end (support), and phrases getting worse towards the end (breath).
+// Returns [{ key, detail }] — problems first (most important), then one strength.
+function technique(lagTrack, active) {
+  const per = NOTES.map(() => []);
+  for (const fr of frames) {
+    const t = fr.t - lagTrack, i = NOTES.findIndex(([s, e]) => t >= s && t < e);
+    if (i < 0 || !active(i) || fr.m == null) continue;
+    let c = (fr.m - NOTES[i][2]) * 100; c -= 1200 * Math.round(c / 1200);     // octave slips are judged elsewhere
+    per[i].push({ t: (t - NOTES[i][0]) / rate, c, a: fr.a || 0 });               // t in real seconds from the note start
+  }
+  const med = a => a.length ? a.slice().sort((x, y) => x - y)[a.length >> 1] : 0;
+  const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+  const notes = [];
+  NOTES.forEach(([s, e], i) => {
+    const p = per[i], len = (e - s) / rate;
+    if (!active(i) || p.length < 12) return;
+    const at = (f0, f1) => p.filter(x => x.t >= f0 * len && x.t < f1 * len);
+    const body = at(0.2, 0.75), tail = at(0.75, 1);
+    const n = { onset: p[0].t, len };
+    const head = p.filter(x => x.t < p[0].t + 0.15);
+    n.scoop = head.length >= 3 && med(head.map(x => x.c)) < -50 && Math.abs(med(body.map(x => x.c))) < 45;
+    n.sag = tail.length >= 3 && body.length >= 3 && med(tail.map(x => x.c)) - med(body.map(x => x.c)) < -30;
+    n.fade = tail.length >= 3 && body.length >= 3 && mean(tail.map(x => x.a)) < 0.45 * mean(body.map(x => x.a));
+    // vibrato: oscillation of the detrended pitch in the steady part of the note
+    const st = p.filter(x => x.t >= 0.2 * len);
+    const span = st.length ? st[st.length - 1].t - st[0].t : 0;
+    if (span >= 0.4 && st.length >= 15) {
+      const k = st.length, mt = mean(st.map(x => x.t)), mc = mean(st.map(x => x.c));
+      const slope = st.reduce((a, x) => a + (x.t - mt) * (x.c - mc), 0) / (st.reduce((a, x) => a + (x.t - mt) ** 2, 0) || 1);
+      const d = st.map(x => x.c - mc - slope * (x.t - mt));
+      let cross = 0; for (let j = 1; j < k; j++) if ((d[j - 1] < 0) !== (d[j] < 0)) cross++;
+      const sorted = d.slice().sort((x, y) => x - y);
+      n.vibRate = cross / 2 / span; n.vibWidth = (sorted[Math.floor(k * 0.9)] - sorted[Math.floor(k * 0.1)]) / 2;
+      n.std = Math.sqrt(mean(d.map(x => x * x)));
+    }
+    notes.push(n);
+  });
+  const out = [], N = notes.length;
+  if (N < 4) return out;
+  const share = f => notes.filter(f).length / N, count = f => notes.filter(f).length;
+  // breath: misses pile up at the ends of fragments
+  const segs = segments(); let first = [0, 0], last = [0, 0];
+  for (const g of segs) {
+    const idx = NOTES.map((n, i) => i).filter(i => inSeg(g, i) && active(i)); if (idx.length < 4) continue;
+    const q = Math.max(1, Math.round(idx.length * 0.3)), miss = i => !(stats && stats[i] && stats[i].hit);
+    idx.slice(0, q).forEach(i => { first[0] += miss(i); first[1]++; }); idx.slice(-q).forEach(i => { last[0] += miss(i); last[1]++; });
+  }
+  if (first[1] && last[0] / last[1] - first[0] / first[1] >= 0.3) out.push({ key: "breath", detail: `в начале фраз мимо ${Math.round(100 * first[0] / first[1])}% нот, в конце — ${Math.round(100 * last[0] / last[1])}%` });
+  if (share(n => n.sag) >= 0.3) out.push({ key: "sag", detail: `в ${count(n => n.sag)} из ${N} нот высота уходит вниз к концу` });
+  if (share(n => n.fade) >= 0.35) out.push({ key: "fade", detail: `в ${count(n => n.fade)} из ${N} нот звук к концу тише вдвое` });
+  if (share(n => n.scoop) >= 0.3) out.push({ key: "scoop", detail: `в ${count(n => n.scoop)} из ${N} нот звук начинается ниже и подтягивается` });
+  const onset = med(notes.map(n => n.onset));
+  if (onset > 0.18) out.push({ key: "lateOnset", detail: `в среднем звук начинается через ${String(Math.round(onset * 10) / 10).replace(".", ",")} с после ноты` });
+  const vib = notes.filter(n => n.vibRate != null);
+  const real = vib.filter(n => n.vibWidth >= 20 && n.vibRate >= 3.5 && n.vibRate <= 9);
+  const fmt = (r, w) => `≈ ${String(Math.round(r * 10) / 10).replace(".", ",")} колебания в секунду, размах ±${Math.round(w)}¢`;
+  if (vib.length >= 3 && real.length / vib.length >= 0.3) {
+    const r = med(real.map(n => n.vibRate)), w = med(real.map(n => n.vibWidth));
+    out.push({ key: w > 90 ? "vibWide" : r > 7.5 ? "vibFast" : r < 4.5 ? "vibSlow" : "vibGood", detail: fmt(r, w) });
+  } else if (vib.length >= 3) {
+    const sd = med(vib.map(n => n.std));
+    if (sd > 30) out.push({ key: "wobble", detail: `высота гуляет в среднем на ±${Math.round(sd)}¢` });
+    else if (sd <= 15) out.push({ key: "straight", detail: `отклонение внутри ноты всего ±${Math.round(sd)}¢` });
+  }
+  const T = (window.COACH && window.COACH.technique) || {};
+  const bad = out.filter(x => T[x.key] && !T[x.key].positive), good = out.filter(x => T[x.key] && T[x.key].positive);
+  return [...bad.slice(0, 2), ...good.slice(0, 1)];
+}
+
+function stopAll() {
+  if (running && !segRun) { Rec.discard(); err.textContent = "Проход прерван сменой упражнения — он не сохранён. Чтобы запись попала в «Мой прогресс», останавливай кнопкой «■ Стоп»."; }
+  clearInterval(ticker); running = false; segRun = null;
+  counting = null; document.getElementById("countIn").hidden = true;   // a count-in in progress is called off
+  Coach.hide();
+  if (audio) { audio.pause(); audio.currentTime = 0; }
+  goBtn.textContent = "▶ Начать"; goBtn.disabled = false; stopBtn.hidden = true;
+  trail = []; stats = null; result.classList.remove("show");
+  needV.textContent = youV.textContent = devV.textContent = "—"; devV.style.color = "";
+  draw(0);
+}
+// «⏸ Пауза»: the teacher reviews what has been sung so far; «▶ Продолжить» hides it and the run goes on
+async function pauseReview() {
+  const g = segRun, now = lastNow;
+  const done = NOTES.map((n, i) => i).filter(i => NOTES[i][1] <= now && (!g || inSeg(g, i)) && stats && stats[i] && stats[i].done);
+  if (!done.length) return;
+  const hit = done.filter(i => stats[i].hit).length, pct = Math.round(100 * hit / done.length), sung = i => done.includes(i);
+  const take = g ? null : await partialTake();
+  if (!running || !audio.paused) return;               // resumed meanwhile
+  Coach.show({ pct, issues: analyze(userLag * rate, sung), tech: technique(userLag * rate, sung), attempt: take, paused: true });
+}
+// the recording of this run so far (decoded), for «Как спел ты» on a pause
+async function partialTake() {
+  try {
+    if (!Rec.r || Rec.r.state === "inactive") return null;
+    Rec.r.requestData(); await new Promise(r => setTimeout(r, 150));
+    if (!Rec.chunks.length) return null;
+    const blob = new Blob(Rec.chunks, { type: Rec.r.mimeType || "audio/webm" });
+    const buffer = await actx.decodeAudioData(await blob.arrayBuffer());
+    const lag = userLag * rate;
+    return { buffer, rate, pitch: frames.filter(f => f.m != null).map(f => [f.t - lag, f.m]) };
+  } catch (e) { return null; }
+}
+
+// «Стоп» mid-run: the teacher still reviews every note sung so far
+function stopEarly(review = true) {
+  if (!running) return stopAll();
+  const g = segRun, now = lastNow, sungFor = audio.currentTime / rate;
+  clearInterval(ticker); running = false; segRun = null; audio.pause();
+  // 10 s or more of a whole-exercise run is kept in «Мой прогресс» with its recording
+  const keep = !g && sungFor >= 10;
+  if (!g && !keep) Rec.discard();
+  goBtn.textContent = "↻ Ещё раз"; goBtn.disabled = false; stopBtn.hidden = true;
+  const done = NOTES.map((n, i) => i).filter(i => NOTES[i][1] <= now && (!g || inSeg(g, i)));
+  if (!done.length) {
+    stopAll();
+    err.textContent = "Остановлено до первой ноты. Спой хотя бы одну фразу — и учитель сразу подскажет.";
+    return;
+  }
+  if (!g && done.length >= 8) {               // learn the headphone delay from this run too (short notes depend on it)
+    let best = { lag: 0, hits: score(0) };
+    for (let ms = 10; ms <= 500; ms += 10) { const h = score(ms / 1000 * rate); if (h.inTune > best.hits.inTune * 1.01) best = { lag: ms / 1000, hits: h }; }
+    userLag = best.lag; try { localStorage.setItem("lagMs", Math.round(userLag * 1000)); } catch (e) {}
+  }
+  const lag = userLag * rate, hits = score(lag), sung = i => done.includes(i);
+  done.forEach(i => { stats[i].hit = hits[i]; stats[i].done = true; });
+  draw(now);
+  const hit = done.filter(i => hits[i]).length, pct = Math.round(100 * hit / done.length);
+  const mmss = `${Math.floor(sungFor / 60)}:${String(Math.floor(sungFor % 60)).padStart(2, "0")}`;
+  if (!review) { if (keep) Progress.saveRun({ pct, hit, total: done.length, lagTrack: lag, part: `до ${mmss}` }).catch(() => {}); return; }
+  result.innerHTML = `<b>Попадание: ${hit} из ${done.length} спетых нот (${pct}%)</b><br>` +
+    `<span style="color:var(--muted);font-size:13px">Проход остановлен на ${mmss} — разбор по спетому.` +
+    (keep ? "" : " Короче 10 секунд — в «Мой прогресс» не сохраняется.") + `</span>`;
+  result.classList.add("show");
+  const issues = analyze(lag, sung), tech = technique(lag, sung);
+  if (!keep) return Coach.show({ pct, issues, tech, attempt: null });
+  Progress.saveRun({ pct, hit, total: done.length, lagTrack: lag, part: `до ${mmss}` })
+    .catch(() => null).then(a => Coach.show({ pct, issues, tech, attempt: a }));
+}
+stopBtn.onclick = stopEarly;
+
+goBtn.onclick = () => start();
+// range: practise one fragment ({ from, s, e, title }) instead of the whole exercise
+async function start(range = null) {
+  if (!NOTES.length) return;
+  unlockAudio();                // «Мои песни» before any song is added
+  // while an exercise runs the main button pauses / resumes it
+  if (running) {
+    if (audio.paused) { Coach.hide(); if (!(await countIn(audio.currentTime))) return; await audio.play(); Rec.resume(); goBtn.textContent = "⏸ Пауза"; }
+    else { audio.pause(); Rec.pause(); goBtn.textContent = "▶ Продолжить"; pauseReview(); }
+    return;
+  }
+  err.textContent = ""; result.classList.remove("show");
+  Progress.stopPlay(); Coach.hide();
+  try {
+    if (!analyser) {
+      // mic first, then the audio context at the mic's rate: on iPhone a context made earlier
+      // (44.1 kHz) reads a 48 kHz mic ~1.5 semitones flat — every note would count as a miss
+      const mic = micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } } });
+      if (!actx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        const micRate = (mic.getAudioTracks()[0].getSettings() || {}).sampleRate;
+        try { actx = micRate ? new AC({ sampleRate: micRate }) : new AC(); } catch (e) { actx = new AC(); }
+      }
+      analyser = actx.createAnalyser(); analyser.fftSize = 2048; buf = new Float32Array(analyser.fftSize);
+      voiceIn = micVoice(mic); voiceIn.connect(analyser);
+    }
+    if (!audio) {
+      goBtn.textContent = "Загрузка…";
+      audio = new MediaDual(current.files || [current.audio]);
+      if (current.files) audio.track = Songs.voice ? current.files[1] : current.files[0];
+      audio.setRate(rate);
+      await audio.ready();
+      goBtn.textContent = "▶ Начать";
+    }
+    await actx.resume();
+    if (actx.state !== "running") { goBtn.textContent = "▶ Начать"; err.textContent = "Микрофон включён — нажми «Начать» ещё раз."; return; }
+    audio.pause(); audio.currentTime = range ? range.from : 0;
+    stats = NOTES.map(() => ({ n: 0, ok: 0, done: false, hit: false })); trail = []; frames = []; recent = [];
+    segRun = range;
+    if (!range && !(await firstNoteHint(audio.currentTime))) { segRun = null; return; }
+    if (!(await countIn(audio.currentTime))) { segRun = null; return; }
+    await audio.play();
+    const mixed = Mix.stream();            // also routes the piano through the speakers' gain
+    if (!range) Rec.start(mixed);          // a practised fragment is not recorded
+    running = true; goBtn.textContent = "⏸ Пауза"; stopBtn.hidden = false;
+    ticker = setInterval(tick, 20);
+    requestAnimationFrame(paint);
+  } catch (e) {
+    segRun = null;
+    err.textContent = "Нет доступа к микрофону или звуку: " + (e && e.message ? e.message : e) + ". Разреши микрофон в браузере и нажми ещё раз.";
+  }
+}
+// Before a whole run: what is about to happen
+function firstNoteHint(fromTrack) {
+  const first = NOTES.find(n => n[0] >= fromTrack - 0.01);
+  const syl = first && current.syllables && current.syllables[NOTES.indexOf(first)];
+  document.getElementById("hintNote").textContent = first ? `Сейчас прозвучит первая нота — ${noteName(first[2])}.` + (syl ? ` Петь её на слог «${syl}».` : "") : "";
+  const box = document.getElementById("hint"); box.hidden = false;
+  return new Promise(ok => {
+    const done = yes => { box.hidden = true; ok(yes); };
+    document.getElementById("hintOk").onclick = () => { unlockAudio(); done(true); };
+    document.getElementById("hintNo").onclick = () => done(false);
+    document.getElementById("hintOk").focus();
+  });
+}
+
+// Count-in «1 2 3 4» before the singing starts, in the exercise's tempo (on the audio clock):
+// on «1» the first note to sing sounds for two beats — a pitch to aim for — then clicks on «3» and «4»;
+// big numbers over the note lane, and that note with its syllable in «Нужно спеть».
+// Returns false when it was cancelled (Стоп, another exercise).
+let counting = null, countOut = null;
+async function countIn(fromTrack) {
+  const token = counting = {}, box = document.getElementById("countIn");
+  const beat = current.files ? 0.7 : 60 / (+bpmIn.value || 80);            // songs: no known tempo, an easy pace
+  const first = NOTES.find(n => n[0] >= fromTrack - 0.01);
+  if (first) {
+    const syl = current.syllables && current.syllables[NOTES.indexOf(first)];
+    needV.textContent = `Готовься: ${syl ? `«${syl}» ` : ""}${noteName(first[2])}`;
+  }
+  if (!countOut) { countOut = actx.createGain(); countOut.connect(toSpeakers()); }
+  const t0 = actx.currentTime + 0.05;
+  token.osc = [];
+  if (first) {                                                             // the first note, a piano-like tone
+    // rich in overtones: a phone speaker can't play a low fundamental (a man's G2 is ~100 Hz),
+    // so the ear has to find the pitch from the harmonics, as it does with the piano
+    const f = 440 * 2 ** ((first[2] - 69) / 12), end = t0 + 2 * beat;
+    [[1, 0.2], [2, 0.14], [3, 0.1], [4, 0.07], [5, 0.045], [6, 0.03]].filter(([h]) => f * h < 8000).forEach(([h, a]) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.frequency.value = f * h;
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(a, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(a * 0.35, end - 0.1); g.gain.exponentialRampToValueAtTime(0.0001, end);
+      o.connect(g); g.connect(countOut); o.start(t0); o.stop(end + 0.02); token.osc.push(o);
+    });
+  }
+  for (let i = first ? 2 : 0; i < 4; i++) {                                // clicks (all four if there is no note)
+    const o = actx.createOscillator(), g = actx.createGain(), at = t0 + i * beat;
+    o.frequency.value = i ? 1000 : 1500;
+    g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(0.3, at + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.07);
+    o.connect(g); g.connect(countOut); o.start(at); o.stop(at + 0.08); token.osc.push(o);
+  }
+  goBtn.disabled = true; stopBtn.hidden = false;
+  for (let i = 1; i <= 4 && counting === token; i++) {
+    box.textContent = i; box.hidden = false; box.classList.remove("beat"); void box.offsetWidth; box.classList.add("beat");
+    await new Promise(r => setTimeout(r, beat * 1000));
+  }
+  box.hidden = true; goBtn.disabled = false;
+  if (counting !== token) { token.osc.forEach(o => { try { o.stop(); } catch (e) {} }); return false; }
+  counting = null; return true;
+}
+
+// The microphone as one voice signal. An audio interface (e.g. a 2-input USB card) often delivers the mic on
+// one channel only — input 2 leaves channel 1 silent — so the louder channel is used (both, if they match).
+let voiceIn = null;
+function micVoice(stream) {
+  const src = actx.createMediaStreamSource(stream), split = actx.createChannelSplitter(2), out = actx.createGain();
+  out.channelCount = 1; out.channelCountMode = "explicit";
+  const g = [actx.createGain(), actx.createGain()], lv = [actx.createAnalyser(), actx.createAnalyser()];
+  src.connect(split);
+  for (let c = 0; c < 2; c++) { split.connect(g[c], c); split.connect(lv[c], c); g[c].connect(out); g[c].gain.value = 0.5; }
+  const b = new Float32Array(1024), e = [0, 0];
+  setInterval(() => {
+    for (let c = 0; c < 2; c++) { lv[c].getFloatTimeDomainData(b); let sum = 0; for (const v of b) sum += v * v; e[c] = 0.8 * e[c] + 0.2 * sum; }
+    const [a0, a1] = e, one = a0 > a1 * 10 ? 0 : a1 > a0 * 10 ? 1 : -1;
+    g[0].gain.value = one === -1 ? 0.5 : one === 0 ? 1 : 0; g[1].gain.value = one === -1 ? 0.5 : one === 1 ? 1 : 0;
+  }, 300);
+  return out;
+}
+
+// ===================== Recordings & progress =====================
+// Everything lives in this browser (IndexedDB): unlimited attempts, each with
+// the voice recording, the pitch line, the score, date and a label.
+const DB = {
+  db: null,
+  open() {
+    if (this.db) return Promise.resolve(this.db);
+    return new Promise((ok, bad) => {
+      const rq = indexedDB.open("vocal-trainer", 2);
+      rq.onupgradeneeded = () => {
+        const db = rq.result;
+        if (!db.objectStoreNames.contains("attempts")) db.createObjectStore("attempts", { keyPath: "id", autoIncrement: true });
+        if (!db.objectStoreNames.contains("songs")) db.createObjectStore("songs", { keyPath: "id", autoIncrement: true });   // «Мои песни»
+      };
+      rq.onsuccess = () => ok(this.db = rq.result); rq.onerror = () => bad(rq.error);
+    });
+  },
+  async tx(mode, fn, store = "attempts") {
+    const db = await this.open();
+    return new Promise((ok, bad) => { const t = db.transaction(store, mode); const r = fn(t.objectStore(store)); t.oncomplete = () => ok(r && r.result); t.onerror = () => bad(t.error); });
+  },
+  add: a => DB.tx("readwrite", s => s.add(a)),
+  put: a => DB.tx("readwrite", s => s.put(a)),
+  del: id => DB.tx("readwrite", s => s.delete(id)),
+  all: () => DB.tx("readonly", s => s.getAll()),
+};
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+
+const Diag = {
+  msgs: [],
+  note(m) { if (!this.msgs.includes(m)) this.msgs.push(m); console.warn("[тренажёр]", m); },
+  flush() { const out = this.msgs.slice(); this.msgs = []; return out; },
+};
+
+// What gets recorded: your voice + the piano you sang with, in one track.
+// The piano is taken from the player itself (so it has your tempo) and delayed
+// by the headphone latency, so voice and keys land together like you heard them.
+const Mix = {
+  el: null, dest: null, delay: null, out: null, piano: false, srcs: new WeakMap(),
+  stream() {
+    if (!micStream || !actx || !actx.createMediaStreamDestination) return micStream;
+    if (this.el !== audio.main) {                     // new exercise → new player element
+      this.el = audio.main; this.piano = false; this.delay = null;
+      this.dest = actx.createMediaStreamDestination();
+      const vg = actx.createGain(); vg.gain.value = 1.6;   // voice leads the mix
+      voiceIn.connect(vg); vg.connect(this.dest);
+      try {
+        // the piano player itself is routed through Web Audio: one branch to the speakers,
+        // one (delayed by the headphone latency) into the recording — reliable in every browser
+        // every player of the exercise (a song has two: backing and original) — the muted one adds silence
+        if (!this.out) { this.out = actx.createGain(); this.out.connect(toSpeakers()); }
+        const pg = actx.createGain(); pg.gain.value = 0.6;   // piano stays underneath the voice
+        this.delay = actx.createDelay(1.0); this.delay.connect(pg); pg.connect(this.dest);
+        for (const el of audio.all) {
+          const src = this.srcs.get(el) || actx.createMediaElementSource(el); this.srcs.set(el, src);
+          src.connect(this.out); src.connect(this.delay);
+        }
+        this.piano = true;
+      } catch (e) { this.piano = false; Diag.note("пианино не записалось (" + (e.message || e) + ") — сохраняю только голос, пианино добавится при прослушивании на сайте"); }
+    }
+    if (this.delay) this.delay.delayTime.value = Math.min(0.9, (actx.outputLatency || 0) + (actx.baseLatency || 0) + userLag);
+    return this.dest.stream;
+  },
+};
+
+
+// voice recorder that follows play / pause / stop of the exercise
+const Rec = {
+  r: null, chunks: [], keep: true,
+  // M4A (AAC) first: small (~40 kbit/s) and opens everywhere (iPhone, Telegram, Windows).
+  // Chrome's AAC encoder errors if a bitrate is forced, so AAC keeps its default;
+  // if AAC fails, recording switches to WebM/Opus at 64 kbit/s without losing the take.
+  options() {
+    const ok = m => window.MediaRecorder && MediaRecorder.isTypeSupported(m);
+    const list = [];
+    if (ok("audio/mp4;codecs=mp4a.40.2")) list.push({ mimeType: "audio/mp4;codecs=mp4a.40.2" });
+    if (ok("audio/webm;codecs=opus")) list.push({ mimeType: "audio/webm;codecs=opus", audioBitsPerSecond: 64000 });
+    list.push({});
+    return list;
+  },
+  start(stream = micStream, attempt = 0) {
+    if (attempt === 0) { this.chunks = []; this.keep = true; this.stream = stream; }
+    this.r = null;
+    if (!stream || !window.MediaRecorder) return;
+    const opts = this.options()[attempt]; if (!opts) return;
+    try { this.r = new MediaRecorder(stream, opts); } catch (e) { return this.start(stream, attempt + 1); }
+    const r = this.r;
+    r.ondataavailable = e => e.data && e.data.size && this.chunks.push(e.data);
+    r.onerror = () => { if (!this.chunks.length && this.r === r) this.start(stream, attempt + 1); };
+    try { r.start(1000); } catch (e) { this.start(stream, attempt + 1); }
+  },
+  pause() { if (this.r && this.r.state === "recording") this.r.pause(); },
+  resume() { if (this.r && this.r.state === "paused") this.r.resume(); },
+  discard() { this.keep = false; if (this.r && this.r.state !== "inactive") this.r.stop(); },
+  stop() {
+    return new Promise(ok => {
+      if (!this.r || this.r.state === "inactive") return ok(null);
+      this.r.onstop = () => ok(this.keep && this.chunks.length ? new Blob(this.chunks, { type: this.r.mimeType || "audio/webm" }) : null);
+      this.r.stop();
+    });
+  },
+};
+
+// Recordings are stored and shared as MP3 (mono, 64 kbit/s): the browser records
+// AAC/WebM, then lamejs (lib/lame.min.js, open source) re-encodes it right here.
+async function toMp3(blob) {
+  if (!blob) return blob;
+  if (!window.lamejs) { Diag.note("не загрузилась библиотека MP3 (lib/lame.min.js) — запись сохранена как " + extOf(blob.type).toUpperCase()); return blob; }
+  try {
+    const ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 2, 44100);
+    const buf = await ctx.decodeAudioData(await blob.arrayBuffer());
+    const sr = buf.sampleRate, n = buf.length, mono = new Float32Array(n);
+    for (let ch = 0; ch < buf.numberOfChannels; ch++) { const d = buf.getChannelData(ch); for (let i = 0; i < n; i++) mono[i] += d[i] / buf.numberOfChannels; }
+    let peak = 0; for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(mono[i]));
+    const gain = peak > 0.001 ? Math.min(8, 0.89 / peak) : 1;          // even level, never clipping
+    const pcm = new Int16Array(n); for (let i = 0; i < n; i++) pcm[i] = Math.max(-32768, Math.min(32767, mono[i] * gain * 32767));
+    const enc = new lamejs.Mp3Encoder(1, sr, 64), parts = [];
+    for (let i = 0; i < n; i += 1152) { const out = enc.encodeBuffer(pcm.subarray(i, i + 1152)); if (out.length) parts.push(out); }
+    const end = enc.flush(); if (end.length) parts.push(end);
+    return new Blob(parts, { type: "audio/mpeg" });
+  } catch (e) { Diag.note("не получилось перевести в MP3 (" + (e.message || e) + ") — запись сохранена как " + extOf(blob.type).toUpperCase()); return blob; }
+}
+
+const fmtDate = ts => new Date(ts).toLocaleString(I18N.en() ? "en-GB" : "ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const exKey = () => (sel.sec === "songs" ? `songs/${sel.song}` : sel.sec === "course" ? `course/${sel.voice}/${sel.ex}` : sel.sec === "scales" ? `scales/${sel.voice}/${sel.key}` : `${sel.sec}/${sel.voice}/${sel.level}/${sel.key}`);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const badge = a => !a.audio ? "без записи" : `${extOf(a.mime).toUpperCase()} · ${a.mixed ? (String(a.ex).startsWith("songs/") ? "голос + музыка" : "голос + пианино") : "только голос"}`;
+const pctColor = p => p >= 85 ? "#00dae8" : p >= 60 ? "#ffb547" : "#ff5c6c";
+const plural = n => I18N.en() ? (n === 1 ? "recording" : "recordings") : (n % 10 === 1 && n % 100 !== 11) ? "запись" : ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) ? "записи" : "записей";
+const extOf = mime => /mpeg|mp3/.test(mime) ? "mp3" : /mp4/.test(mime) ? "m4a" : /ogg/.test(mime) ? "ogg" : "webm";
+
+const Progress = {
+  scope: "this", selected: [], player: null,
+  async saveRun({ pct, hit, total, lagTrack, part = "" }) {
+    const now = Date.now();
+    const pitch = frames.filter(f => f.m != null).map(f => [Math.round((f.t - lagTrack) * 100) / 100, Math.round(f.m * 100) / 100]);
+    const a = { created: now, label: fmtDate(now), ex: exKey(), title: document.getElementById("title").textContent + (part ? ` · ${part}` : ""),
+                bpm: +bpmIn.value, rate, pct, hit, total, pitch, mixed: Mix.piano };
+    const blob = await toMp3(await Rec.stop());
+    a.audio = blob; a.mime = blob ? blob.type : "";
+    try { a.id = await DB.add(a); } catch (e) { result.insertAdjacentHTML("beforeend", "<br><span style='color:#ff5c6c'>Не удалось сохранить запись: " + esc(e.message || e) + "</span>"); return; }
+    const problems = Diag.flush();
+    result.insertAdjacentHTML("beforeend",
+      `<div class="rlabel">✓ Сохранено в «Мой прогресс» — ${badge(a)}. Подпись: <input id="lastLabel" value="${esc(a.label)}">` +
+      (blob ? ` <button class="ghost" id="lastPlay" data-play-id="${a.id}" data-label="▶ Прослушать">▶ Прослушать</button> <button class="ghost" id="lastSend">📤 Отправить педагогу</button>` : ` <span class="muted">(без записи голоса — браузер не поддерживает запись)</span>`) + `</div>`);
+    if (problems.length) result.insertAdjacentHTML("beforeend", `<div class="err">⚠ ${problems.map(esc).join("<br>⚠ ")}</div>`);
+    document.getElementById("lastLabel").onchange = async e => { a.label = e.target.value || a.label; await DB.put(a); this.render(); };
+    if (blob) { document.getElementById("lastPlay").onclick = () => this.play(a); document.getElementById("lastSend").onclick = () => this.send(a); }
+    this.render();
+    return a;
+  },
+  async list() { const all = await DB.all(); return all.sort((x, y) => y.created - x.created); },
+  async render() {
+    const all = await this.list(), cur = exKey();
+    const box = document.getElementById("attempts"); box.innerHTML = "";
+    if (this.scope === "this") {
+      const mine = all.filter(a => a.ex === cur);
+      if (!mine.length) box.innerHTML = `<div class="phero"><div class="pempty" style="margin:0">Здесь появится твой прогресс, когда закончишь первый проход этого упражнения.</div></div>`;
+      else { box.appendChild(this.hero(mine, false)); box.appendChild(this.deck(mine)); }
+    } else this.tiles(all, box);
+    this.usage(); this.marks();
+  },
+  // ring around the best score of an exercise
+  ring(p, size = 50) {
+    const m = size / 2, r = m - 4, c = 2 * Math.PI * r;
+    return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle cx="${m}" cy="${m}" r="${r}" fill="none" stroke="#1d1f23" stroke-width="6"/>` +
+      `<circle cx="${m}" cy="${m}" r="${r}" fill="none" stroke="${pctColor(p)}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(c * p / 100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${m} ${m})"/>` +
+      `<text x="${m}" y="${m}" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="${Math.round(size * .3)}" font-weight="700" font-family="Manrope, sans-serif">${p}</text></svg>`;
+  },
+  // takes of one exercise come newest first: last vs the very first one
+  trend(arr) {
+    const d = arr[0].pct - arr[arr.length - 1].pct;
+    return arr.length < 2 ? "первый шаг" : d === 0 ? "как в первый раз" : `<span class="${d > 0 ? "up" : "down"}">${d > 0 ? "↑ +" : "↓ −"}${Math.abs(d)}</span> с первого`;
+  },
+  name: a => String(a.title).split(" · до ")[0],          // a stopped run is saved as "<title> · до 1:20"
+  hero(arr, canOpen) {
+    const best = Math.max(...arr.map(a => a.pct)), el = document.createElement("div"); el.className = "phero";
+    el.innerHTML = `<div class="ptile">${this.ring(best, 60)}<div><div class="pt">${esc(this.name(arr[0]))}</div>` +
+      `<div class="ps">лучший ${best}% · ${arr.length} ${plural(arr.length)} · последний <b style="color:${pctColor(arr[0].pct)}">${arr[0].pct}%</b> · ${this.trend(arr)}</div></div></div>` + this.spark(arr);
+    if (canOpen) {
+      const go = document.createElement("button"); go.className = "ghost"; go.textContent = "Открыть упражнение";
+      go.onclick = () => this.goTo(arr[0].ex); el.appendChild(go);
+    }
+    return el;
+  },
+  // smooth line of the scores in the order they were sung, no axes — the numbers are in the list
+  spark(arr) {
+    if (arr.length < 2) return `<div class="pempty">После следующего прохода здесь появится линия роста.</div>`;
+    const pts = arr.slice().reverse(), W = 600, H = 64, n = pts.length, vs = pts.map(a => a.pct);
+    let lo = Math.min(...vs), hi = Math.max(...vs);
+    if (hi - lo < 20) { const mid = (hi + lo) / 2; lo = mid - 10; hi = mid + 10; }
+    const P = pts.map((a, i) => [(4 + i * (W - 8) / (n - 1)).toFixed(1), (H - 6 - (a.pct - lo) / (hi - lo) * (H - 12)).toFixed(1)]);
+    let d = `M${P[0][0]},${P[0][1]}`;
+    for (let i = 1; i < n; i++) { const cx = ((+P[i - 1][0] + +P[i][0]) / 2).toFixed(1); d += ` C${cx},${P[i - 1][1]} ${cx},${P[i][1]} ${P[i][0]},${P[i][1]}`; }
+    return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Результаты по порядку: ${vs.join(", ")}%">` +
+      `<path d="${d} L${P[n - 1][0]},${H} L${P[0][0]},${H}Z" fill="rgba(0,218,232,.10)"/>` +
+      `<path d="${d}" fill="none" stroke="#00dae8" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`;
+  },
+  // takes of one exercise as a music player: the chosen take on top (seek bar, ⏮ ▶ ⏭), the rest as a playlist
+  pick: {},                                               // exercise → id of the take shown in the player
+  deck(arr) {
+    const ex = arr[0].ex, a = arr.find(x => x.id === this.pick[ex]) || arr[0], i = arr.indexOf(a), sel = this.selected.includes(a.id);
+    const el = document.createElement("div"); el.className = "pdeck";
+    const part = String(a.title).split(" · до ")[1], dated = a.label !== fmtDate(a.created);   // dated = the take has its own name
+    el.innerHTML = `<div class="pplayer${sel ? " sel" : ""}" data-id="${a.id}">
+      <div class="pph"><div class="rmain"><div class="pname"><input value="${dated ? esc(a.label) : ""}" placeholder="${esc(this.when(a.created))}" maxlength="80" enterkeyhint="done" title="Название записи — нажми, чтобы изменить"><button class="ib pen" title="Переименовать">✎</button></div>
+        <div class="meta">${dated ? esc(fmtDate(a.created)) + " · " : ""}${part ? "до " + esc(part) + " · " : ""}${a.bpm} BPM · ${a.hit}/${a.total} нот · ${badge(a)}</div></div>
+        <span class="ppct" style="color:${pctColor(a.pct)}">${a.pct}%</span></div>
+      <div class="seek${a.audio ? "" : " off"}" title="${a.audio ? "Перемотать" : "Без записи голоса"}"><i></i></div>
+      <div class="ptime"><span class="tcur">0:00</span><span class="tdur">${a.audio ? this.mmss(this.dur(a)) : "без записи голоса"}</span></div>
+      <div class="pctl">
+        <button class="ib${sel ? " on" : ""}" data-act="cmp" title="Сравнить: отметь две записи одного упражнения">⇄</button>
+        <button class="ib" data-go="-1" title="Предыдущая в списке"${i > 0 ? "" : " disabled"}>⏮</button>
+        <button class="pbig" data-act="play" title="Прослушать"${a.audio ? "" : " disabled"}>▶</button>
+        <button class="ib" data-go="1" title="Следующая в списке"${i < arr.length - 1 ? "" : " disabled"}>⏭</button>
+        ${a.audio ? `<button class="ib" data-act="send" title="Отправить педагогу">📤</button>` : ""}
+        <button class="ib" data-act="del" title="Удалить">🗑</button></div></div>
+      <div class="plist">${arr.map((b, k) => `<div class="prow${b === a ? " cur" : ""}${this.selected.includes(b.id) ? " sel" : ""}" data-id="${b.id}" role="button" tabindex="0">
+        <span class="pn">${b.id === this.playing ? "♪" : k + 1}</span><span class="pl">${esc(b.label !== fmtDate(b.created) ? b.label : this.when(b.created))}</span>
+        <button class="ib rpen" title="Переименовать">✎</button><span class="pd">${b.audio ? this.mmss(this.dur(b)) : "—"}</span><b style="color:${pctColor(b.pct)}">${b.pct}%</b></div>`).join("")}</div>`;
+    // rename: type over the date; an empty name goes back to the date
+    const name = el.querySelector(".pname input");
+    name.onchange = async () => { a.label = name.value.trim() || fmtDate(a.created); await DB.put(a); this.render(); };
+    name.onkeydown = e => { if (e.key === "Enter") name.blur(); if (e.key === "Escape") { name.value = dated ? a.label : ""; name.blur(); } };
+    el.querySelector(".pen").onclick = () => { name.focus(); name.select(); };
+    el.querySelectorAll(".pctl [data-act]").forEach(b => b.onclick = () => this.act(b.dataset.act, a));
+    el.querySelectorAll("[data-go]").forEach(b => b.onclick = async () => { const was = this.playing === a.id && !this.paused, n = arr[i + +b.dataset.go];
+      this.pick[ex] = n.id; if (this.playing === a.id && !(was && n.audio)) this.stopPlay(); await this.render(); if (was && n.audio) this.play(n); });
+    // ✎ in the playlist: the name turns into a field right there
+    el.querySelectorAll(".rpen").forEach(pen => pen.onclick = e => {
+      e.stopPropagation();
+      const r = pen.closest(".prow"), b = arr.find(x => x.id === +r.dataset.id), inp = document.createElement("input");
+      inp.className = "pl"; inp.value = b.label !== fmtDate(b.created) ? b.label : ""; inp.placeholder = this.when(b.created); inp.maxLength = 80; inp.enterKeyHint = "done";
+      r.querySelector(".pl").replaceWith(inp); inp.focus(); inp.select();
+      let done = false;
+      const save = async keep => { if (done) return; done = true; if (keep) { b.label = inp.value.trim() || fmtDate(b.created); await DB.put(b); } this.render(); };
+      inp.onclick = e => e.stopPropagation();
+      inp.onkeydown = e => { e.stopPropagation(); if (e.key === "Enter") save(true); if (e.key === "Escape") save(false); };
+      inp.onblur = () => save(true);
+    });
+    el.querySelectorAll(".prow").forEach(r => r.onkeydown = e => { if (e.target === r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); r.click(); } });
+    el.querySelectorAll(".prow").forEach(r => r.onclick = async () => { const b = arr.find(x => x.id === +r.dataset.id);
+      if (b !== a) { this.pick[ex] = b.id; if (!b.audio && this.playing === a.id) this.stopPlay(); await this.render(); }
+      if (b.audio) this.play(b); });
+    const seek = el.querySelector(".seek");
+    if (a.audio) seek.onclick = e => { const r = seek.getBoundingClientRect(); this.seek(a, Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))); };
+    return el;
+  },
+  // "26 октября, 00:35" — how an unnamed take is called
+  when: ts => new Date(ts).toLocaleString(I18N.en() ? "en-GB" : "ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }),
+  // length of a take: from "до 1:46" when it was stopped, else from the last sung pitch
+  dur(a) {
+    const part = /до (\d+):(\d+)/.exec(a.title);
+    return part ? +part[1] * 60 + +part[2] : a.pitch && a.pitch.length ? Math.ceil(a.pitch[a.pitch.length - 1][0] + 1) : 0;
+  },
+  // «Все»: a tile per exercise, grouped by section; a tap shows its takes at the end of the group
+  shown: undefined,
+  tiles(all, box) {
+    if (!all.length) { box.innerHTML = `<div class="pempty">Пока нет записей.</div>`; return; }
+    const cur = exKey(), by = new Map(), order = Object.keys(C.sections), sec = ex => ex.split("/")[0];
+    for (const a of all) { if (!by.has(a.ex)) by.set(a.ex, []); by.get(a.ex).push(a); }      // list() is newest first
+    if (this.shown === undefined) this.shown = by.has(cur) ? cur : null;
+    const rank = s => order.includes(s) ? order.indexOf(s) : 99;
+    const grid = document.createElement("div"); grid.className = "ptiles"; box.appendChild(grid);
+    for (const s of [...new Set([...by.keys()].map(sec))].sort((x, y) => rank(x) - rank(y))) {
+      const head = C.sections[s] || s; let detail = null;
+      grid.insertAdjacentHTML("beforeend", `<div class="pgroup">${esc(head)}</div>`);
+      for (const [ex, arr] of [...by.entries()].filter(([ex]) => sec(ex) === s).sort((x, y) => y[1][0].created - x[1][0].created)) {
+        const t = document.createElement("button"); t.type = "button"; t.className = "ptile" + (ex === this.shown ? " on" : "");
+        const title = this.name(arr[0]).replace(head + ": ", "");
+        t.innerHTML = `${this.ring(Math.max(...arr.map(a => a.pct)))}<div><div class="pt">${esc(title)}</div><div class="ps">${ex === cur ? "сейчас открыто · " : ""}${arr.length} ${plural(arr.length)} · ${this.trend(arr)}</div></div>`;
+        t.onclick = () => { this.shown = this.shown === ex ? null : ex; this.render(); };
+        grid.appendChild(t);
+        if (ex === this.shown) { detail = document.createElement("div"); detail.className = "pdetail"; detail.appendChild(this.hero(arr, ex !== cur)); detail.appendChild(this.deck(arr)); }
+      }
+      if (detail) grid.appendChild(detail);
+    }
+  },
+  // open the exercise a stored take belongs to (the reverse of exKey)
+  goTo(ex) {
+    const [sec, ...p] = ex.split("/");
+    Object.assign(sel, sec === "songs" ? { sec, song: p[0] } : sec === "course" ? { sec, voice: p[0], ex: p[1] }
+      : sec === "scales" ? { sec, voice: p[0], key: p[1] } : { sec, voice: p[0], level: p[1], key: p[2] });
+    choose(); window.scrollTo({ top: 0, behavior: "smooth" });
+  },
+  async usage() {
+    try { const e = await navigator.storage.estimate(); document.getElementById("storageInfo").textContent = `Занято ${(e.usage / 1048576).toFixed(1)} МБ из доступных ~${Math.round(e.quota / 1073741824)} ГБ`; } catch (e) {}
+  },
+  async act(what, a) {
+    if (what === "play") this.play(a);
+    if (what === "send") this.send(a);
+    if (what === "del" && confirm(`Удалить запись «${a.label}»? Её нельзя будет вернуть.`)) { if (this.playing === a.id) this.stopPlay(); await DB.del(a.id); this.selected = this.selected.filter(x => x !== a.id); this.render(); }
+    if (what === "cmp") {
+      if (this.selected.includes(a.id)) this.selected = this.selected.filter(x => x !== a.id);
+      else { this.selected.push(a.id); if (this.selected.length > 2) this.selected.shift(); }
+      await this.render();
+      if (this.selected.length === 2) this.compare();
+    }
+  },
+  // play the voice together with its piano at the tempo it was sung; the same take again pauses / goes on
+  paused: false,
+  play(a) {
+    if (this.playing === a.id && this.player) {
+      this.paused = !this.paused;
+      this.player.forEach(el => this.paused ? el.pause() : el.play().catch(() => {}));
+      return this.marks();
+    }
+    this.stopPlay();
+    const item = C.items[a.ex]; if (!a.audio || !item) return;
+    const voice = new Audio(URL.createObjectURL(a.audio));
+    this.player = [voice]; this.playing = a.id; this.playLen = this.dur(a); this.playRate = a.rate || 1;
+    if (!a.mixed) {                       // older voice-only takes: add the piano at playback
+      const piano = new Audio(item.audio);
+      piano.preservesPitch = piano.mozPreservesPitch = piano.webkitPreservesPitch = true; piano.playbackRate = a.rate || 1; piano.volume = 0.55;
+      this.player.push(piano);
+    }
+    Promise.all(this.player.map(el => el.play())).catch(() => {});
+    voice.onended = () => this.stopPlay();
+    voice.ontimeupdate = () => this.sync();
+    document.getElementById("nowPlayText").textContent = `Играет: ${a.label} — ${a.pct}%`;
+    document.getElementById("nowPlay").hidden = false;
+    this.marks();
+  },
+  // jump to a share (0…1) of the take; starts it if it isn't the one playing
+  seek(a, f) {
+    if (this.playing !== a.id) this.play(a);
+    if (!this.player) return;
+    const v = this.player[0], go = () => { const t = f * (isFinite(v.duration) && v.duration ? v.duration : this.playLen);
+      v.currentTime = t; this.player.slice(1).forEach(el => el.currentTime = t * this.playRate); this.sync(); };
+    v.readyState >= 1 ? go() : v.addEventListener("loadedmetadata", go, { once: true });
+  },
+  stopPlay() {
+    if (this.player) { this.player.forEach(el => { el.pause(); if (el.src.startsWith("blob:")) URL.revokeObjectURL(el.src); }); this.player = null; }
+    this.playing = null; this.paused = false; document.getElementById("nowPlay").hidden = true; this.marks();
+  },
+  // every ▶ that belongs to the playing record shows ■ (and pauses it on click)
+  marks() {
+    document.querySelectorAll("[data-play-id]").forEach(b => {
+      const on = +b.dataset.playId === this.playing && !this.paused;
+      b.textContent = on ? (b.dataset.stop || "■ Стоп") : (b.dataset.label || "▶"); b.classList.toggle("on", on);
+    });
+    document.querySelectorAll(".plist").forEach(l => [...l.children].forEach((r, k) => r.querySelector(".pn").textContent = +r.dataset.id === this.playing ? "♪" : k + 1));
+    this.sync();
+  },
+  // the big player: ▶/⏸, seek bar and time follow the playing take
+  sync() {
+    document.querySelectorAll(".pplayer").forEach(p => {
+      const v = +p.dataset.id === this.playing && this.player ? this.player[0] : null;
+      const d = v && isFinite(v.duration) && v.duration ? v.duration : this.playLen, t = v ? v.currentTime : 0;
+      const b = p.querySelector(".pbig"); b.textContent = v && !this.paused ? "⏸" : "▶"; b.classList.toggle("on", !!v);
+      p.querySelector(".seek i").style.width = (v && d ? Math.min(100, t / d * 100) : 0) + "%";
+      p.querySelector(".tcur").textContent = this.mmss(t); if (v && isFinite(v.duration) && v.duration) p.querySelector(".tdur").textContent = this.mmss(v.duration);
+    });
+  },
+  mmss: s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`,
+  file(a) {
+    const clean = t => String(t).replace(/[:·\/\\?*"<>|]/g, " ").replace(/\s+/g, " ").trim();
+    const date = new Date(a.created).toISOString().slice(0, 10);
+    const label = a.label && a.label !== fmtDate(a.created) ? ` — ${clean(a.label).slice(0, 40)}` : "";
+    const name = `${clean(a.title)} — ${date}${label} — ${a.pct}%.${extOf(a.mime)}`;
+    return new File([a.audio], name, { type: a.mime || "audio/webm" });
+  },
+  async send(a) {
+    const f = this.file(a), text = `${a.title}\n${a.label}: ${a.pct}% (${a.hit}/${a.total} нот, ${a.bpm} BPM)`;
+    // share ONLY the file: with text attached Telegram keeps the text and drops the file.
+    // Exercise, date and score are in the file name.
+    try { if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f] }); return; } } catch (e) { if (e.name === "AbortError") return; }
+    const url = URL.createObjectURL(f), link = document.createElement("a"); link.href = url; link.download = f.name; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    alert("Файл записи скачан — отправь его педагогу в Telegram/WhatsApp.\n\n" + text);
+  },
+  async compare() {
+    const all = await this.list();
+    let [A, B] = this.selected.map(id => all.find(a => a.id === id)).sort((x, y) => x.created - y.created);
+    const panel = document.getElementById("compare"); panel.hidden = false;
+    if (A.ex !== B.ex) { document.getElementById("cmpTitle").textContent = "Выбери две записи одного и того же упражнения"; return; }
+    document.getElementById("cmpTitle").textContent = `Сравнение: ${A.title}`;
+    document.getElementById("cmpA").textContent = `${A.label} — ${A.pct}%`;
+    document.getElementById("cmpB").textContent = `${B.label} — ${B.pct}%  (${B.pct - A.pct >= 0 ? "+" : ""}${B.pct - A.pct}%)`;
+    const pa = document.getElementById("cmpPlayA"), pb = document.getElementById("cmpPlayB");
+    pa.dataset.playId = A.id; pa.dataset.label = "▶ Послушать первую"; pa.onclick = () => this.play(A);
+    pb.dataset.playId = B.id; pb.dataset.label = "▶ Послушать вторую"; pb.onclick = () => this.play(B);
+    this.marks();
+    const notes = C.items[A.ex].notes, cv = document.getElementById("cmpCv"), g = cv.getContext("2d");
+    const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1; cv.width = r.width * dpr; cv.height = r.height * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const W = r.width, H = r.height, ms = notes.map(n => n[2]), lo = Math.min(...ms) - 2, hi = Math.max(...ms) + 2, T = notes[notes.length - 1][1] + 0.5;
+    const x = t => t / T * W, y = m => H - (m - lo + 0.5) * H / (hi - lo + 1), rowH = H / (hi - lo + 1);
+    g.clearRect(0, 0, W, H);
+    g.fillStyle = "#1d1f23"; notes.forEach(([s, e, m]) => g.fillRect(x(s), y(m) - rowH * 0.4, Math.max(2, x(e) - x(s) - 1), rowH * 0.8));
+    const line = (p, color) => { g.strokeStyle = color; g.lineWidth = 2; g.beginPath(); let prev = null;
+      for (const [t, m] of p) { if (m < lo - 1 || m > hi + 1) { prev = null; continue; } if (prev && t - prev < 0.08) g.lineTo(x(t), y(m)); else g.moveTo(x(t), y(m)); prev = t; } g.stroke(); };
+    line(A.pitch, "rgba(255,255,255,.75)"); line(B.pitch, "rgba(0,218,232,.95)");
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  },
+  async exportAll() {
+    const all = await this.list();
+    const toB64 = b => new Promise(ok => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(b); });
+    const out = [];
+    for (const a of all) out.push({ ...a, audio: a.audio ? await toB64(a.audio) : null });
+    const blob = new Blob([JSON.stringify({ app: "vocal-trainer", version: 1, exported: Date.now(), attempts: out })], { type: "application/json" });
+    const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `${I18N.en() ? "my warm-up recordings" : "мои записи распевки"} ${new Date().toISOString().slice(0, 10)}.json`; link.click();
+  },
+  async importFile(file) {
+    const data = JSON.parse(await file.text());
+    const have = new Set((await this.list()).map(a => a.created + "|" + a.ex));
+    let added = 0;
+    for (const a of data.attempts || []) {
+      if (have.has(a.created + "|" + a.ex)) continue;
+      const copy = { ...a }; delete copy.id;
+      if (a.audio) copy.audio = await (await fetch(a.audio)).blob();
+      await DB.add(copy); added++;
+    }
+    alert(`Загружено записей: ${added}` + (added < (data.attempts || []).length ? ` (остальные уже были)` : ""));
+    this.render();
+  },
+};
+// ===================== Teacher =====================
+// Pops up after a run: the main mistake with a tip, the worst fragments, and buttons to hear
+// how it should sound, hear yourself there, and sing just that fragment again.
+// Words come from coach.js; voice files (if made) are coach/voice/<id>.mp3, listed in coach/voice/list.json.
+// a random phrase, but never one of the last few the teacher said
+const recentSaid = [];
+const pick = a => {
+  const fresh = a.filter(x => !recentSaid.includes(x.id || x.text)), x = (fresh.length ? fresh : a)[Math.floor(Math.random() * (fresh.length || a.length))];
+  recentSaid.push(x.id || x.text); if (recentSaid.length > 12) recentSaid.shift();
+  return x;
+};
+const Coach = {
+  el: document.getElementById("coach"), text: document.getElementById("coachText"), placesEl: document.getElementById("coachPlaces"),
+  lines: [], player: null, raf: 0, typer: 0, typingUntil: 0, src: null, out: null, an: null, bufs: {}, voiced: null, run: 0,
+  hide() { this.stopDemo(); this.silence(); this.el.hidden = true; },
+  show({ pct, issues, tech = [], attempt, paused = false }) {
+    const T = window.COACH; if (!T) return;
+    const r = report(issues);
+    const tip = r.types[0] && T.tips[r.types[0]];
+    // on a pause the run is still going: no «try this bit» buttons, just a nudge to carry on
+    const outro = paused ? { text: "Нажми «▶ Продолжить», когда будешь готов петь дальше." } : r.places.length ? pick(T.outro) : null;
+    // praise a fragment sung clean (at least 3 notes, all of them hit)
+    const clean = segments().filter(g => { const idx = NOTES.map((n, i) => i).filter(i => inSeg(g, i)); return idx.length >= 3 && idx.every(i => stats && stats[i] && stats[i].done && stats[i].hit); });
+    let praise = null;
+    if (clean.length && T.praise) { const p = pick(T.praise), g = clean[Math.floor(Math.random() * clean.length)]; praise = { id: p.id, text: p.text.replace("{place}", I18N.t(g.title)) }; }
+    this.lines = [pick(T.intro[pct >= 85 ? "great" : pct >= 60 ? "good" : "weak"]), praise, tip && pick(tip.say), outro].filter(Boolean);
+    this.also = r.types.slice(1, 3).map(t => T.tips[t] && T.tips[t].title).filter(Boolean);
+    // technique notes: each with what was measured and the teacher's tip; the first one is also spoken
+    const TT = T.technique || {};
+    const techLines = tech.filter(x => TT[x.key]).map(x => ({ x, def: TT[x.key], line: pick(TT[x.key].say) }));
+    this.spoken = techLines.length ? [...this.lines.slice(0, 2), techLines[0].line, ...this.lines.slice(2)] : this.lines;
+    this.mood(pct >= 85);
+    this.places = r.places; this.attempt = attempt;
+    this.placesEl.innerHTML = (techLines.length ? `<div class="tech"><h4>Техника</h4>` + techLines.map(({ x, def, line }) =>
+      `<div class="titem${def.positive ? " good" : ""}"><div class="tt">${def.positive ? "👍" : "💡"} ${esc(def.title)}</div>` +
+      `<div class="td">${esc(x.detail)}</div><div class="tx">${esc(line.text)}</div></div>`).join("") + `</div>` : "") +
+      r.places.map((p, k) => `<div class="place"><h4>${esc(p.seg.title)}</h4>` +
+      `<div class="chips">${p.issues.slice().sort((a, b) => a.i - b.i).slice(0, 6).map(chip).join("")}</div>` +
+      `<div class="pbtns"><button class="ghost" data-k="${k}" data-act="demo">▶ Как надо</button>` +
+      (attempt && (attempt.audio || attempt.buffer) ? `<button class="ghost" data-k="${k}" data-act="mine">🎤 Как спел ты</button>` : "") +
+      `<button class="go" data-k="${k}" data-act="try">↻ Спеть этот кусок</button></div></div>`).join("");
+    Ask.reset([...r.types, ...tech.map(x => x.key)]);
+    this.reveal();
+    this.talk();
+    if (pct >= 85) setTimeout(() => this.dance(), 500);
+  },
+  reveal() {
+    this.el.hidden = false; this.el.classList.remove("pop"); void this.el.offsetWidth; this.el.classList.add("pop");
+    this.el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  },
+  // opened from «Вопрос учителю» without a run: just a greeting and the questions
+  open() {
+    if (!this.el.hidden) { document.getElementById("askIn").focus(); return; }
+    this.lines = [{ text: "Привет! Спрашивай про вокал — дыхание, высокие ноты, переход, вибрато, как распеваться. Или выбери вопрос ниже." }];
+    this.spoken = []; this.also = []; this.places = []; this.placesEl.innerHTML = "";
+    this.mood(true); Ask.reset([]); this.reveal(); this.talk();
+  },
+  // eyebrows: raised after a good run, a little thoughtful otherwise (the smile stays)
+  mood(happy) {
+    document.getElementById("avBrowL").setAttribute("d", happy ? "M45 43l10-2.5" : "M45 44l10-1.5");
+    document.getElementById("avBrowR").setAttribute("d", happy ? "M65 40.5l10 2.5" : "M65 42.5l10 1.5");
+  },
+  // a little dance with flying notes — praise after a great run
+  dance() {
+    const av = document.getElementById("coachAv");
+    av.classList.remove("dance"); void av.offsetWidth; av.classList.add("dance");
+    clearTimeout(this.danceT); this.danceT = setTimeout(() => av.classList.remove("dance"), 2800);
+  },
+  // type the words out while the mouth moves; play the recorded voice if there is one
+  talk() {
+    this.silence(); const run = ++this.run;
+    const full = this.lines.map(l => l.text).join("\n");
+    this.text.textContent = ""; let n = 0;
+    this.typingUntil = Infinity;
+    this.typer = setInterval(() => {
+      n += 2; this.text.textContent = full.slice(0, n);
+      if (n >= full.length) {
+        clearInterval(this.typer); this.typingUntil = 0;
+        if (this.also.length) this.text.insertAdjacentHTML("beforeend", `<span class="also">Ещё обрати внимание: ${esc(this.also.join(", ").toLowerCase())}.</span>`);
+      }
+    }, 28);
+    this.mouth();
+    this.speak(this.spoken || this.lines, run);
+  },
+  silence() {
+    clearInterval(this.typer); this.typingUntil = 0; this.run++;
+    if (this.src) { try { this.src.stop(); } catch (e) {} this.src = null; }
+  },
+  async speak(lines, run) {
+    if (!actx) return;
+    if (!this.voiced) this.voiced = fetch("coach/voice/list.json").then(r => r.ok ? r.json() : []).catch(() => []);
+    const have = await this.voiced;
+    if (!this.out) { this.out = actx.createGain(); this.an = actx.createAnalyser(); this.an.fftSize = 512; this.out.connect(this.an); this.an.connect(actx.destination); }
+    for (const l of lines) {
+      if (run !== this.run || !have.includes(l.id)) continue;
+      // decoded into the running audio context: plays on iPhone too, without a new tap
+      const b = await (this.bufs[l.id] = this.bufs[l.id] || fetch(`coach/voice/${l.id}.mp3`).then(r => r.arrayBuffer())
+        .then(a => new Promise(ok => actx.decodeAudioData(a, ok, () => ok(null)))).catch(() => null));
+      if (!b || run !== this.run) continue;
+      await new Promise(ok => { const s = this.src = actx.createBufferSource(); s.buffer = b; s.connect(this.out); s.onended = ok; s.start(); });
+    }
+    this.src = null;
+  },
+  mouth() {
+    cancelAnimationFrame(this.mraf);
+    const m = document.getElementById("avMouth"), smile = document.getElementById("avSmile"), d = new Uint8Array(512);
+    const step = () => {
+      let lvl = 0;
+      if (this.src && this.an) { this.an.getByteTimeDomainData(d); let s = 0; for (const v of d) s += (v - 128) ** 2; lvl = Math.min(1, Math.sqrt(s / d.length) / 24); }
+      else if (this.typingUntil) lvl = 0.25 + 0.55 * Math.abs(Math.sin(performance.now() / 75));
+      // always smiling: talking just opens the smile wider (with a portrait, its ring glows instead)
+      smile.setAttribute("d", `M51.5 66q8.5 ${(8 + lvl * 7).toFixed(1)} 17 0`);
+      document.getElementById("coachAv").classList.toggle("talking", lvl > 0.3);
+      if (!this.el.hidden && (this.src || this.typingUntil)) this.mraf = requestAnimationFrame(step);
+      else { smile.setAttribute("d", "M51.5 66q8.5 8 17 0"); document.getElementById("coachAv").classList.remove("talking"); }
+    };
+    this.mraf = requestAnimationFrame(step);
+  },
+  // play a fragment and move the note lane with it: the piano (how it should sound) or your own take
+  demo(k, mine) {
+    if (running && !audio.paused) return;
+    const g = this.places[k].seg, a = mine && this.attempt;
+    const wasMe = (this.player && this.player.dataset.key === `${k}${mine ? "m" : "d"}`) || (this.bsrc && this.bsrc.key === `${k}${mine ? "m" : "d"}`);
+    this.stopDemo(); Progress.stopPlay(); this.silence();
+    if (wasMe) return;                      // second click on the same button stops it
+    const from = Math.max(0, g.s - g.lead), to = g.e;
+    const r0 = a ? (a.rate || 1) : rate;     // track seconds per second of this player
+    // «Как надо»: in a song — the original with the singer's voice; in an exercise — the piano
+    if (a && a.buffer) return this.demoBuffer(k, g, a, from, to);
+    const el = a ? new Audio(URL.createObjectURL(a.audio)) : new Audio(current.files ? current.files[1] : current.audio);
+    if (a) el.dataset.own = "1";                     // only this temporary URL is ours to release; a song's own URLs stay
+    el.dataset.key = `${k}${mine ? "m" : "d"}`;
+    if (!a) { el.preservesPitch = el.mozPreservesPitch = el.webkitPreservesPitch = true; }
+    this.player = el;
+    const toTrack = t => a ? t * r0 : t;
+    const btn = this.placesEl.querySelector(`[data-k="${k}"][data-act="${mine ? "mine" : "demo"}"]`);
+    if (btn) { btn.dataset.label = btn.textContent; btn.textContent = "■ Стоп"; }
+    const loop = () => {
+      if (this.player !== el) return;
+      const t = toTrack(el.currentTime);
+      if (t > to || el.ended) return this.stopDemo();
+      trail = a ? a.pitch.filter(([pt]) => pt > t - 4 * rate && pt <= t).map(([pt, m]) => {
+        const n = targetAt(pt); return { t: pt, m, c: !n ? "#7b8089" : Math.abs((m - n[2]) * 100) <= tolOf(n) ? "#00dae8" : m > n[2] ? "#ffb547" : "#a78bfa" };
+      }) : [];
+      draw(t); showLabel(t); this.raf = requestAnimationFrame(loop);
+    };
+    if (a && actx) { try { actx.createMediaElementSource(el).connect(this.boost()); } catch (e) {} }   // your take, louder
+    const go = () => { el.currentTime = a ? from / r0 : from; if (!a) el.playbackRate = rate; el.play().then(loop).catch(() => this.stopDemo()); };
+    el.readyState >= 1 ? go() : el.addEventListener("loadedmetadata", go, { once: true });
+  },
+  // «Как спел ты» on a pause: the run's recording so far, played straight from memory
+  // «Как спел ты» plays through this: louder (×2.2) with a limiter so loud spots don't crackle
+  boost() {
+    if (!this.out) { this.out = actx.createGain(); this.an = actx.createAnalyser(); this.an.fftSize = 512; this.out.connect(this.an); this.an.connect(actx.destination); }
+    if (!this.boostIn) {
+      const g = actx.createGain(), lim = actx.createDynamicsCompressor();
+      g.gain.value = 2.2; lim.threshold.value = -6; lim.knee.value = 4; lim.ratio.value = 20; lim.attack.value = 0.003; lim.release.value = 0.15;
+      g.connect(lim); lim.connect(this.out); this.boostIn = g;
+    }
+    return this.boostIn;
+  },
+  demoBuffer(k, g, a, from, to) {
+    const r0 = a.rate || 1, src = actx.createBufferSource(), off = Math.min(from / r0, a.buffer.duration);
+    src.buffer = a.buffer; src.connect(this.boost());
+    const t0 = actx.currentTime; src.start(0, off, Math.max(0.1, (to - from) / r0));
+    this.bsrc = src; src.key = `${k}m`;
+    const btn = this.placesEl.querySelector(`[data-k="${k}"][data-act="mine"]`);
+    if (btn) { btn.dataset.label = btn.textContent; btn.textContent = "■ Стоп"; }
+    src.onended = () => { if (this.bsrc === src) this.stopDemo(); };
+    const loop = () => {
+      if (this.bsrc !== src) return;
+      const t = from + (actx.currentTime - t0) * r0;
+      trail = a.pitch.filter(([pt]) => pt > t - 4 * rate && pt <= t).map(([pt, m]) => {
+        const n = targetAt(pt); return { t: pt, m, c: !n ? "#7b8089" : Math.abs((m - n[2]) * 100) <= tolOf(n) ? "#00dae8" : m > n[2] ? "#ffb547" : "#a78bfa" };
+      });
+      draw(t); showLabel(t); this.raf = requestAnimationFrame(loop);
+    };
+    loop();
+  },
+  stopDemo() {
+    cancelAnimationFrame(this.raf);
+    if (this.bsrc) { const s = this.bsrc; this.bsrc = null; try { s.stop(); } catch (e) {} }
+    if (this.player) { this.player.pause(); if (this.player.dataset.own) URL.revokeObjectURL(this.player.src); this.player = null; }
+    this.placesEl.querySelectorAll("[data-label]").forEach(b => { b.textContent = b.dataset.label; delete b.dataset.label; });
+    trail = [];
+  },
+  practise(k) {
+    const g = this.places[k].seg;
+    this.stopDemo();
+    if (running) stopEarly(false);
+    document.querySelector(".stagewrap").scrollIntoView({ behavior: "smooth", block: "start" });
+    start({ from: Math.max(0, g.s - g.lead), s: g.s, e: g.e, title: g.title });
+  },
+};
+// a missed note as a small coloured label: Соль4 ↓ 40¢, Ми5 ↑ октава, Ре4 — не слышно…
+function chip(x) {
+  const n = noteName(NOTES[x.i][2]);
+  const amt = c => Math.abs(c) < 100 ? Math.round(Math.abs(c)) + "¢" : String(Math.round(Math.abs(c) / 100) / 2).replace(".", ",") + " тона";
+  const [text, cls] = {
+    flat: [`${n} ↓ ${amt(x.c)}`, "low"], sharp: [`${n} ↑ ${amt(x.c)}`, "high"],
+    octaveUp: [`${n} ↑ на октаву`, "high"], octaveDown: [`${n} ↓ на октаву`, "low"],
+    late: [`${n} — поздно`, "meh"], unstable: [`${n} — плавает`, "meh"], silent: [`${n} — не слышно`, "miss"],
+  }[x.type];
+  return `<span class="chip ${cls}">${esc(text)}</span>`;
+}
+// ---- questions to the teacher, answered from the knowledge base (knowledge.js), offline ----
+// Simple search: words of the question are cut to 5-letter stems (enough for Russian endings)
+// and matched against each entry's tags, question and answer.
+const Ask = {
+  thread: document.getElementById("askThread"), sugg: document.getElementById("askSugg"), input: document.getElementById("askIn"),
+  // which entries to suggest after a run, by mistake / technique key
+  RELATED: {
+    flat: ["pitch-flat", "breath-support"], sharp: ["pitch-sharp", "throat-squeeze"], octaveUp: ["pitch-octave"], octaveDown: ["pitch-octave"],
+    unstable: ["unstable", "breath-exercise"], late: ["pitch-late"], silent: ["pitch-headphones"],
+    breath: ["breath-runout", "breath-how"], sag: ["breath-support", "pitch-flat"], fade: ["breath-runout", "breath-support"],
+    scoop: ["pitch-scoop", "onset-soft"], lateOnset: ["pitch-late", "breath-between"], wobble: ["unstable", "jaw"],
+    vibWide: ["vibrato-bad"], vibFast: ["vibrato-bad", "jaw"], vibSlow: ["vibrato-bad"], vibGood: ["vibrato"], straight: ["straight-tone", "vibrato"],
+  },
+  DEFAULT: ["breath-how", "high-notes", "break", "warmup-order", "pitch-hear", "vibrato"],
+  STOP: new Set("как что почему зачем мне меня мой моя мои это или если когда нужно надо можно ли на в во и я у не при с со а то так для же бы по от до из за ты вы он она они его её их уже ещё очень делать сделать такое такой значит".split(" ")
+    .concat("how what why when where which who is are am do does did can could should would will my me the a an and or of to in on at for with it its this that i you your so not no about if from be get make".split(" ")).map(w => w.slice(0, 5))),
+  stems(text) {
+    return String(text).toLowerCase().replace(/ё/g, "е").split(/[^a-zа-я0-9]+/).filter(w => w.length >= 2).map(w => w.slice(0, 5)).filter(w => !this.STOP.has(w));
+  },
+  index() {
+    if (this.idx) return this.idx;
+    return this.idx = (window.KNOWLEDGE || []).map(k => ({ k, tags: new Set(this.stems(k.tags.join(" "))), q: new Set(this.stems(k.q)), a: new Set(this.stems(k.a)) }));
+  },
+  search(text) {
+    const words = [...new Set(this.stems(text))];
+    if (!words.length) return [];
+    return this.index().map(e => ({ k: e.k, s: words.reduce((s, w) => s + (e.tags.has(w) ? 3 : 0) + (e.q.has(w) ? 2 : 0) + (e.a.has(w) ? 0.5 : 0), 0) }))
+      .filter(x => x.s >= 2.5).sort((a, b) => b.s - a.s);
+  },
+  byId(id) { return (window.KNOWLEDGE || []).find(k => k.id === id); },
+  reset(keys) {
+    this.thread.innerHTML = ""; this.input.value = "";
+    const ids = [...new Set(keys.flatMap(k => this.RELATED[k] || []))];
+    this.suggest(ids.length ? ids.concat(this.DEFAULT).slice(0, 5) : this.DEFAULT);
+  },
+  suggest(ids) {
+    this.sugg.innerHTML = ids.map(id => this.byId(id)).filter(Boolean)
+      .map(k => `<button type="button" class="chip" data-id="${k.id}">${esc(k.q)}</button>`).join("");
+  },
+  say(role, text, note) {
+    const d = document.createElement("div"); d.className = "msg " + role; this.thread.appendChild(d);
+    if (role === "me") { d.textContent = text; return; }
+    // the teacher types the answer while the mouth moves
+    let n = 0; clearInterval(this.typer); Coach.typingUntil = Infinity; Coach.mouth();
+    this.typer = setInterval(() => {
+      n += 3; d.textContent = text.slice(0, n);
+      if (n >= text.length) { clearInterval(this.typer); Coach.typingUntil = 0; if (note) d.insertAdjacentHTML("beforeend", `<span class="src">${esc(note)}</span>`); }
+    }, 16);
+    d.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  },
+  answer(k, asked) {
+    this.say("me", asked || k.q);
+    this.say("t", k.a, `Раздел: ${k.topic}`);
+    const more = (asked ? this.search(asked).map(x => x.k) : this.search(k.q + " " + k.tags.join(" ")).map(x => x.k)).filter(x => x.id !== k.id);
+    const near = (window.KNOWLEDGE || []).filter(x => x.topic === k.topic && x.id !== k.id);
+    this.suggest([...new Set([...more, ...near].map(x => x.id))].slice(0, 4));
+  },
+  ask(text) {
+    text = text.trim(); if (!text) return;
+    const hits = this.search(text);
+    if (hits.length) return this.answer(hits[0].k, text);
+    this.say("me", text);
+    this.say("t", "Точного ответа у меня пока нет. Попробуй спросить другими словами или выбери близкий вопрос ниже. А лучше задай его своему педагогу на уроке!");
+    this.suggest(this.DEFAULT);
+  },
+};
+document.getElementById("askForm").onsubmit = e => { e.preventDefault(); Ask.ask(Ask.input.value); Ask.input.value = ""; };
+document.getElementById("askSugg").onclick = e => { const b = e.target.closest("[data-id]"); if (b) Ask.answer(Ask.byId(b.dataset.id)); };
+document.getElementById("askOpen").onclick = () => Coach.open();
+
+document.getElementById("coachPlaces").onclick = e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const k = +b.dataset.k;
+  if (b.dataset.act === "try") Coach.practise(k); else Coach.demo(k, b.dataset.act === "mine");
+};
+document.getElementById("coachAgain").onclick = () => Coach.talk();
+
+document.querySelectorAll("#progScope button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#progScope button").forEach(x => x.classList.toggle("on", x === b));
+  Progress.scope = b.dataset.v; Progress.render();
+});
+document.getElementById("exportBtn").onclick = () => Progress.exportAll();
+document.getElementById("importIn").onchange = e => e.target.files[0] && Progress.importFile(e.target.files[0]).catch(er => alert("Не получилось загрузить файл: " + er.message));
+document.getElementById("nowPlayStop").onclick = () => Progress.stopPlay();
+document.getElementById("cmpClose").onclick = () => { document.getElementById("compare").hidden = true; Progress.selected = []; Progress.render(); };
+
+// zoom buttons (and ctrl / pinch + wheel over the lane)
+function setZoom(z) {
+  ZOOM = Math.round(Math.min(2.5, Math.max(0.5, z)) * 10) / 10;
+  try { localStorage.setItem("zoom", ZOOM); } catch (e) {}
+  document.getElementById("zoomV").textContent = Math.round(ZOOM * 100) + "%";
+  vLO = null; if (!running) draw(lastNow || (NOTES[0] ? NOTES[0][0] : 0));
+}
+document.getElementById("zoomIn").onclick = () => setZoom(ZOOM + 0.25);
+document.getElementById("zoomOut").onclick = () => setZoom(ZOOM - 0.25);
+cv.addEventListener("wheel", e => { if (!e.ctrlKey) return; e.preventDefault(); setZoom(ZOOM * (e.deltaY < 0 ? 1.1 : 0.9)); }, { passive: false });
+document.getElementById("zoomV").textContent = Math.round(ZOOM * 100) + "%";
+
+// ===================== «Мои песни» =====================
+// A song the student uploads: the voice is separated from the music right here (separate.js),
+// its melody becomes notes (melody.js), and both stay in this browser (IndexedDB «songs»).
+// Nothing is uploaded anywhere.
+const fmtLeft = sec => sec >= 60 ? `${Math.floor(sec / 60)} мин ${Math.round(sec % 60)} с` : `${Math.max(1, Math.round(sec))} с`;
+// stereo Float32 → MP3 (lamejs), in slices so the page keeps breathing
+async function mp3FromChannels([L, R], sr, kbps, onProgress = () => {}) {
+  const enc = new lamejs.Mp3Encoder(2, sr, kbps), parts = [], n = L.length, B = 1152;
+  const l16 = new Int16Array(B), r16 = new Int16Array(B);
+  for (let i = 0, k = 0; i < n; i += B, k++) {
+    const m = Math.min(B, n - i);
+    for (let j = 0; j < m; j++) { l16[j] = Math.max(-32768, Math.min(32767, L[i + j] * 32767)); r16[j] = Math.max(-32768, Math.min(32767, R[i + j] * 32767)); }
+    const out = enc.encodeBuffer(l16.subarray(0, m), r16.subarray(0, m)); if (out.length) parts.push(out);
+    if (k % 400 === 0) { onProgress(i / n); await yieldUI(); }
+  }
+  const end = enc.flush(); if (end.length) parts.push(end);
+  return new Blob(parts, { type: "audio/mpeg" });
+}
+// the same in a background thread, so singing can start while the instrumental is being saved
+function mp3InWorker([L, R], sr, kbps, onProgress = () => {}) {
+  const lame = new URL("lib/lame.min.js", location.href).href;
+  const src = `importScripts(${JSON.stringify(lame)});
+onmessage = e => {
+  const { L, R, sr, kbps } = e.data, enc = new lamejs.Mp3Encoder(2, sr, kbps), parts = [], n = L.length, B = 1152;
+  const l = new Int16Array(B), r = new Int16Array(B);
+  for (let i = 0, k = 0; i < n; i += B, k++) {
+    const m = Math.min(B, n - i);
+    for (let j = 0; j < m; j++) { l[j] = Math.max(-32768, Math.min(32767, L[i + j] * 32767)); r[j] = Math.max(-32768, Math.min(32767, R[i + j] * 32767)); }
+    const out = enc.encodeBuffer(l.subarray(0, m), r.subarray(0, m)); if (out.length) parts.push(out);
+    if (k % 400 === 0) postMessage({ p: i / n });
+  }
+  const end = enc.flush(); if (end.length) parts.push(end);
+  postMessage({ blob: new Blob(parts, { type: "audio/mpeg" }) });
+};`;
+  return new Promise((ok, bad) => {
+    const url = URL.createObjectURL(new Blob([src], { type: "text/javascript" })), w = new Worker(url);
+    const done = () => { w.terminate(); URL.revokeObjectURL(url); };
+    w.onmessage = e => { if (e.data.blob) { done(); ok(e.data.blob); } else onProgress(e.data.p); };
+    w.onerror = e => { done(); bad(new Error(e.message || "worker")); };
+    w.postMessage({ L, R, sr, kbps });
+  });
+}
+// 16-bit WAV, for playing the instrumental right away (before the MP3 is ready)
+function wavBlob([L, R], sr) {
+  const n = L.length, buf = new ArrayBuffer(44 + n * 4), v = new DataView(buf);
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, "RIFF"); v.setUint32(4, 36 + n * 4, true); str(8, "WAVE"); str(12, "fmt "); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 2, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 4, true);
+  v.setUint16(32, 4, true); v.setUint16(34, 16, true); str(36, "data"); v.setUint32(40, n * 4, true);
+  const pcm = new Int16Array(buf, 44);
+  for (let i = 0; i < n; i++) { pcm[2 * i] = Math.max(-32768, Math.min(32767, L[i] * 32767)); pcm[2 * i + 1] = Math.max(-32768, Math.min(32767, R[i] * 32767)); }
+  return new Blob([buf], { type: "audio/wav" });
+}
+const pcOfKey = name => { const r = name.split(" ")[0]; return mod(NATURAL[r[0]] + (r.split("#").length - 1) - (r.slice(1).split("b").length - 1), 12); };
+const keyFor = k => C.keys.find(x => pcOfKey(x.name) === k.pc && x.name.endsWith(k.mode)) || C.keys[0];
+const transposeKey = (name, k) => { const [, mode] = name.split(" "); return keyFor({ pc: mod(pcOfKey(name) + k, 12), mode }).name; };
+// pitch-shift a whole AudioBuffer by k semitones, same length and tempo → [L, R]
+async function pitchShift(buf, k, onProgress = () => {}) {
+  const { SoundTouch, SimpleFilter, WebAudioBufferSource } = await import(new URL("lib/soundtouch.js", location.href).href);
+  const st = new SoundTouch(); st.pitchSemitones = k; st.tempo = 1;
+  const filter = new SimpleFilter(new WebAudioBufferSource(buf), st);
+  const n = buf.length, L = new Float32Array(n), R = new Float32Array(n), CH = 8192, tmp = new Float32Array(CH * 2);
+  let pos = 0, round = 0;
+  while (pos < n) {
+    const got = filter.extract(tmp, CH); if (!got) break;
+    const m = Math.min(got, n - pos);
+    for (let i = 0; i < m; i++) { L[pos + i] = tmp[2 * i]; R[pos + i] = tmp[2 * i + 1]; }
+    pos += m;
+    if (++round % 20 === 0) { onProgress(pos / n); await yieldUI(); }
+  }
+  return [L, R];
+}
+const Songs = {
+  list: [], voice: false, busy: false,
+  async init() {
+    try { this.list = (await DB.tx("readonly", s => s.getAll(), "songs")) || []; } catch (e) { this.list = []; }
+    this.list.sort((a, b) => b.created - a.created);
+    this.list.forEach(r => this.mount(r));
+  },
+  // a stored song becomes a trainer item: instrumental (or the original, with the singer) + notes + the singer's line
+  mount(r) {
+    const old = C.items["songs/" + r.id]; if (old && old.files) old.files.forEach(u => URL.revokeObjectURL(u));
+    const k = r.shift && r.shiftInst ? r.shift : 0;                 // semitones the student moved the song
+    const inst = URL.createObjectURL(k ? r.shiftInst : r.inst), orig = URL.createObjectURL(k ? r.shiftOrig : r.orig);
+    const base = r.key || keyFor(Melody.key(r.notes)).name;         // songs stored before key detection get one now
+    C.items["songs/" + r.id] = { title: r.title, audio: inst, files: [inst, orig], bpm: 100, shift: k,
+                                 notes: k ? r.notes.map(([a, b, m]) => [a, b, m + k]) : r.notes,
+                                 line: k ? r.line.map(([t, m]) => [t, m == null ? null : m + k]) : r.line,
+                                 keyName: transposeKey(base, k),
+                                 lyrics: r.words && r.words.length ? Lyrics.perNote(r.notes, r.words) : null };
+  },
+  // move a song up or down (semitones): instrumental and original are pitch-shifted once, kept, tempo unchanged
+  async setShift(r, k) {
+    if (this.busy) return;
+    if (running || audio) {                          // the player must pick up the new (shifted) audio
+      const was = running; stopAll();
+      err.textContent = was ? "Проход остановлен — песня переходит в новую тональность. Нажми «Начать», когда будет готово." : "";
+    }
+    if (!k) { delete r.shiftInst; delete r.shiftOrig; r.shift = 0; this.mount(r); choose(); try { await DB.tx("readwrite", s => s.put(r), "songs"); } catch (e) {} return; }
+    this.busy = true; this.renderBar();
+    try {
+      const ctx = new OfflineAudioContext(2, 1, 44100);
+      const shifted = [];
+      for (const [n, blob] of [[0, r.inst], [1, r.orig]]) {
+        const buf = await ctx.decodeAudioData(await blob.arrayBuffer());
+        shifted.push(await pitchShift(buf, k, p => this.job(`Сдвигаю песню на ${k > 0 ? "+" : "−"}${Math.abs(k)} полутон… ${Math.round((n + p) * 50)}%`, (n + p) / 2)));
+      }
+      r.shift = k; r.shiftInst = wavBlob(shifted[0], 44100); r.shiftOrig = wavBlob(shifted[1], 44100);
+      this.mount(r); this.busy = false;
+      if (sel.sec === "songs") choose(); else this.renderBar();
+      // keep compact copies
+      const save = p => this.job(`Готово — можно петь! Сохраняю сдвинутую песню… ${Math.round(p * 100)}%`, p);
+      r.shiftInst = await mp3InWorker(shifted[0], 44100, 160, p => save(p / 2)).catch(() => r.shiftInst);
+      r.shiftOrig = await mp3InWorker(shifted[1], 44100, 160, p => save(0.5 + p / 2)).catch(() => r.shiftOrig);
+      await DB.tx("readwrite", s => s.put(r), "songs");
+      this.job(null);
+    } catch (e) {
+      this.busy = false; this.renderBar();
+      this.job("Не получилось сдвинуть песню: " + (e && e.message || e), null, true);
+    }
+  },
+  renderBar() {
+    const s = document.getElementById("songSel");
+    s.innerHTML = this.list.length ? this.list.map(r => `<option value="${r.id}">${esc(r.title)}</option>`).join("") : `<option value="">— пока нет песен —</option>`;
+    s.value = sel.song; s.disabled = !this.list.length || this.busy;
+    document.getElementById("songDel").hidden = document.getElementById("songRedo").hidden = !this.list.length;
+    document.getElementById("songRedo").disabled = this.busy;
+    document.getElementById("songVoice").hidden = !this.list.length;
+    document.getElementById("songVoice").textContent = `🎤 Голос певца: ${this.voice ? "вкл" : "выкл"}`;
+    document.getElementById("songAdd").style.opacity = this.busy ? .5 : 1;
+    document.getElementById("songFile").disabled = this.busy;
+    const r = this.list.find(x => String(x.id) === sel.song), info = document.getElementById("songInfo");
+    const ks = document.getElementById("songKey");
+    ks.hidden = !r;
+    if (r) {
+      if (!ks.options.length) for (const k of C.keys) ks.add(new Option(`Тональность: ${k.ru}`, k.name));
+      ks.value = C.items["songs/" + r.id].keyName;
+      const sh = document.getElementById("songShift");
+      if (!sh.options.length) for (let k = -6; k <= 6; k++) sh.add(new Option(k ? `Сдвиг: ${k > 0 ? "+" : "−"}${Math.abs(k)} полутон${Math.abs(k) === 1 ? "" : Math.abs(k) < 5 ? "а" : "ов"}` : "Сдвиг: оригинал", k));
+      sh.value = r.shift || 0; sh.disabled = this.busy;
+    }
+    document.getElementById("songShift").hidden = !r;
+    const sl = document.getElementById("songLang");
+    sl.hidden = !r; if (r) { sl.value = r.lang || Lyrics.guessLang(r.title); sl.disabled = this.busy; }
+    info.hidden = !r || !r.stats;
+    if (r && r.stats) info.textContent = `${r.backend === "webgpu" ? "Обработано на видеокарте" : "Обработано без видеокарты"} за ${fmtLeft(r.stats.secs)} · ` +
+      `голос найден в ${r.stats.voiced}% песни · нот ${r.notes.length}` + (r.words ? (r.words.length ? ` · слов ${r.words.length}` : " · слова не распознались") : " · без слов — нажми «Пересчитать ноты»") + (r.stats.failed ? ` · ⚠ сбой нейросети на ${r.stats.failed} из ${r.stats.segments} кусков — там нот не будет` : "");
+  },
+  job(text, frac, isError) {
+    const box = document.getElementById("songJob");
+    box.hidden = text == null; if (text == null) return;
+    document.getElementById("songJobText").textContent = text;
+    document.getElementById("songJobText").style.color = isError ? "var(--miss)" : "";
+    document.getElementById("songJobBar").style.width = frac == null ? "0" : Math.round(frac * 100) + "%";
+    document.getElementById("songJobNote").hidden = !!isError;
+  },
+  async add(file, again = null) {
+    if (this.busy || !file) return;
+    if (file.size > 60e6) { this.job("Файл больше 60 МБ — возьми MP3 песни до 10 минут.", null, true); return; }
+    this.busy = true; this.renderBar();
+    const title = again ? again.title : file.name.replace(/\.[^.]+$/, "").slice(0, 80);
+    try {
+      this.job("Читаю файл…", 0.01);
+      const ab = await new OfflineAudioContext(2, 1, 44100).decodeAudioData(await file.arrayBuffer());
+      if (ab.duration > 600) throw new Error("песня длиннее 10 минут");
+      const L = ab.getChannelData(0), R = ab.numberOfChannels > 1 ? ab.getChannelData(1) : L;
+      const be = await Separator.load(p => this.job(`Загружаю нейросеть (только в первый раз, ~120 МБ)… ${Math.round(p * 100)}%`, 0.02 + p * 0.08));
+      const t0 = performance.now();
+      const { vocals, instrumental, failed, segments } = await Separator.separate(L, R, p => {
+        const left = p > 0.04 ? (performance.now() - t0) / 1000 / p * (1 - p) : null;
+        this.job(`Отделяю голос от музыки… ${Math.round(p * 100)}%` + (left ? ` · осталось ~${fmtLeft(left)}` : "") +
+          (be === "wasm" ? " · без видеокарты это долго" : ""), 0.1 + p * 0.72);
+      });
+      const line = await Melody.contour(vocals[0], vocals[1], p => this.job(`Снимаю мелодию… ${Math.round(p * 100)}%`, 0.82 + p * 0.08));
+      const notes = Melody.notes(line);
+      if (!notes.length) throw new Error("в песне не нашлось вокала");
+      let words = [];
+      const lang = again && again.lang ? again.lang : Lyrics.guessLang(title);
+      try {
+        words = await Lyrics.words(vocals[0], vocals[1], lang, p => this.job(
+          p < 0.4 ? `Загружаю распознавание слов (только в первый раз, ~210 МБ)… ${Math.round(p / 0.4 * 100)}%` : "Распознаю слова песни…", 0.86 + p * 0.04));
+      } catch (e) { words = []; }                    // a song without words is still a song
+      // ready to sing now (instrumental as WAV in memory); the compact MP3 is made in the background, then stored
+      const voiced = line.filter(p => p[1] != null).length / Math.max(1, line.length);
+      const key = again && again.keyManual ? again.key : keyFor(Melody.key(notes)).name;   // a key the student chose stays
+      if (again) {                                   // replace the old version of this song
+        const old = C.items["songs/" + again.id]; if (old) old.files.forEach(u => URL.revokeObjectURL(u));
+        this.list = this.list.filter(x => x !== again);
+      }
+      const rec = { id: again ? again.id : Date.now(), title, created: again ? again.created : Date.now(), duration: ab.duration, notes, line: line.filter((_, i) => i % 2 === 0),
+                    inst: wavBlob(instrumental, 44100), orig: file, backend: be, key, keyManual: !!(again && again.keyManual), words, lang,
+                    stats: { voiced: Math.round(voiced * 100), failed, segments, secs: Math.round((performance.now() - t0) / 1000) } };
+      this.list.unshift(rec); this.mount(rec);
+      this.busy = false;
+      sel.song = String(rec.id);
+      if (sel.sec === "songs" && !running) choose(); else this.renderBar();
+      const saving = p => this.job(`Готово — можно петь! Минус сохраняется в память браузера… ${Math.round(p * 100)}%`, p);
+      saving(0);
+      rec.inst = await mp3InWorker(instrumental, 44100, 160, saving).catch(() => mp3FromChannels(instrumental, 44100, 160, saving));
+      await DB.tx("readwrite", s => s.put(rec), "songs");
+      this.job(null);
+    } catch (e) {
+      this.busy = false; this.renderBar();
+      this.job("Не получилось обработать песню: " + (e && e.message || e), null, true);
+    }
+  },
+  async remove() {
+    const r = this.list.find(x => String(x.id) === sel.song); if (!r) return;
+    if (!confirm(`Удалить «${r.title}» из «Моих песен»? Записи проходов в «Моём прогрессе» останутся.`)) return;
+    await DB.tx("readwrite", s => s.delete(r.id), "songs");
+    const it = C.items["songs/" + r.id]; if (it) it.files.forEach(u => URL.revokeObjectURL(u));
+    delete C.items["songs/" + r.id];
+    this.list = this.list.filter(x => x !== r);
+    sel.song = this.list[0] ? String(this.list[0].id) : "";
+    choose();
+  },
+};
+document.getElementById("songFile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; Songs.add(f); };
+document.getElementById("songSel").onchange = e => { sel.song = e.target.value; choose(); };
+document.getElementById("songDel").onclick = () => Songs.remove();
+document.getElementById("songKey").onchange = async e => {
+  const r = Songs.list.find(x => String(x.id) === sel.song); if (!r) return;
+  r.key = transposeKey(e.target.value, -(r.shift || 0)); r.keyManual = true; C.items["songs/" + r.id].keyName = e.target.value;
+  try { await DB.tx("readwrite", s => s.put(r), "songs"); } catch (er) {}
+  choose();
+};
+document.getElementById("songLang").onchange = e => {
+  const r = Songs.list.find(x => String(x.id) === sel.song); if (!r) return;
+  r.lang = e.target.value; Songs.add(r.orig, r);           // words in the chosen language: the song is processed again
+};
+document.getElementById("songShift").onchange = e => {
+  const r = Songs.list.find(x => String(x.id) === sel.song); if (r) Songs.setShift(r, +e.target.value);
+};
+document.getElementById("songRedo").onclick = () => { const r = Songs.list.find(x => String(x.id) === sel.song); if (r) Songs.add(r.orig, r); };
+document.getElementById("songVoice").onclick = () => {
+  Songs.voice = !Songs.voice;
+  if (audio && current.files) audio.setTrack(Songs.voice ? current.files[1] : current.files[0]);   // switch live, mid-song
+  Songs.renderBar();
+};
+
+Songs.init().finally(choose);
+</script>
+</body>
+</html>

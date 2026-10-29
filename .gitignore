@@ -1,0 +1,4 @@
+# test copies of songs and the local test page — never published
+_dev/
+.DS_Store
+__pycache__/
