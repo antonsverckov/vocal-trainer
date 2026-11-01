@@ -87,6 +87,8 @@
   .readout { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
   .card { background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; }
   .card .k { color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .09em; }
+  .miclvl { height: 4px; border-radius: 2px; background: rgba(255,255,255,.08); margin-top: 8px; overflow: hidden; }
+  .miclvl i { display: block; height: 100%; width: 0; background: var(--hit); border-radius: 2px; transition: width .08s; }
   .card .v { font-size: 26px; font-weight: 600; letter-spacing: -.02em; margin-top: 4px; font-variant-numeric: tabular-nums; }
   .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin: 12px 4px 2px; }
   .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 0; }
@@ -324,7 +326,7 @@
     <div class="stage"><canvas id="cv"></canvas><div class="countin" id="countIn" hidden></div></div>
   <div class="readout">
     <div class="card"><div class="k">Нужно спеть</div><div class="v" id="needV">—</div></div>
-    <div class="card"><div class="k">Ты поёшь</div><div class="v" id="youV">—</div></div>
+    <div class="card"><div class="k">Ты поёшь</div><div class="v" id="youV">—</div><div class="miclvl" title="Громкость микрофона: если полоска не двигается, когда поёшь, — микрофон тебя не слышит"><i id="micBar"></i></div></div>
     <div class="card"><div class="k">Точность</div><div class="v" id="devV">—</div></div>
   </div>
   <div class="legend">
@@ -461,6 +463,7 @@ const pxPerS = () => PX_PER_S * ZOOM;
 const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
 // Safari < 16 has no canvas roundRect: fall back to a plain rectangle
 if (!CanvasRenderingContext2D.prototype.roundRect) CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h) { this.rect(x, y, w, h); };
+const micBar = document.getElementById("micBar");
 const needV = document.getElementById("needV"), youV = document.getElementById("youV"), devV = document.getElementById("devV");
 const stopBtn = document.getElementById("stop");
 const goBtn = document.getElementById("go"), result = document.getElementById("result"), err = document.getElementById("err");
@@ -635,7 +638,7 @@ window.addEventListener("resize", resize); resize();
 let lastRms = 0;
 function detect(data, sr) {
   let rms = 0; for (const x of data) rms += x * x; rms = lastRms = Math.sqrt(rms / data.length);
-  if (rms < 0.01) return null;
+  if (rms < 0.004) return null;     // low: a Bluetooth headset mic on iPhone is quiet; noise is rejected by YIN below
   // halve the sample rate first (voice needs far less than 44–48 kHz): ~4× less work, same accuracy
   const topHz = 440 * 2 ** ((HI + 2 - 69) / 12);       // highest note this exercise can need (+ margin)
   if (sr >= 32000 && sr / 2 / topHz >= 40) {           // keep ≥40 samples per period after halving
@@ -790,6 +793,15 @@ function tick() {
   const now = base - userLag * rate;                                                      // ...as heard through headphones
   analyser.getFloatTimeDomainData(buf);
   const f = detect(buf, actx.sampleRate);
+  micBar.style.width = Math.min(100, Math.sqrt(lastRms / 0.15) * 100) + "%";
+  if (f) { MicInfo.voiced++; MicInfo.heardAt = audio.currentTime; }
+  // a few seconds of singing time and not one pitched sound: say so (once per run)
+  if (!MicInfo.warned && !segRun && audio.currentTime - MicInfo.heardAt > 8 && NOTES.some(n => n[0] < audio.currentTime - 2)) {
+    MicInfo.warned = true;
+    err.textContent = IOS
+      ? "Микрофон почти не слышит тебя. На iPhone с Bluetooth-наушниками звук с их микрофона бывает очень тихим: пой громче и ближе, или возьми проводные наушники (через переходник) — с ними надёжнее всего."
+      : "Микрофон почти не слышит тебя. Проверь, что браузеру разрешён микрофон и выбран нужный (значок микрофона в адресной строке), и пой чуть громче.";
+  }
   const tgt = targetAt(now);
   let m = f ? despike(toMidi(f), base) : null, color = "#7b8089";
   frames.push({ t: base, m, a: lastRms });
@@ -1103,6 +1115,7 @@ async function start(range = null) {
     if (actx.state !== "running") { goBtn.textContent = "▶ Начать"; err.textContent = "Микрофон включён — нажми «Начать» ещё раз."; return; }
     audio.pause(); audio.currentTime = range ? range.from : 0;
     stats = NOTES.map(() => ({ n: 0, ok: 0, done: false, hit: false })); trail = []; frames = []; recent = [];
+    MicInfo.warned = false; MicInfo.heardAt = range ? range.from : 0; if (err.textContent.startsWith("Микрофон почти")) err.textContent = "";
     segRun = range;
     if (!range && !(await firstNoteHint(audio.currentTime))) { segRun = null; return; }
     if (!(await countIn(audio.currentTime))) { segRun = null; return; }
@@ -1178,6 +1191,25 @@ async function countIn(fromTrack) {
 // The microphone as one voice signal. An audio interface (e.g. a 2-input USB card) often delivers the mic on
 // one channel only — input 2 leaves channel 1 silent — so the louder channel is used (both, if they match).
 let voiceIn = null;
+// ?diag in the address: a small panel with the microphone's real numbers — a student can screenshot it
+if (/[?&]diag\b/.test(location.search)) {
+  const box = document.createElement("pre"); box.setAttribute("data-no-i18n", "");
+  box.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:50;max-width:calc(100% - 16px);margin:0;padding:8px 10px;font:11px/1.35 ui-monospace,monospace;background:rgba(0,0,0,.85);color:#9ff;border:1px solid #333;border-radius:8px;white-space:pre-wrap;pointer-events:none";
+  document.addEventListener("DOMContentLoaded", () => document.body.appendChild(box));
+  setInterval(() => {
+    const tr = micStream && micStream.getAudioTracks()[0], st = tr ? tr.getSettings() : {};
+    box.textContent = [
+      navigator.userAgent.replace(/^Mozilla\/5\.0 /, "").slice(0, 90),
+      "mic: " + (tr ? `${tr.label || "?"} · ${tr.readyState}${tr.muted ? " · MUTED" : ""}` : "не включён"),
+      "mic settings: " + JSON.stringify({ sr: st.sampleRate, ch: st.channelCount, ec: st.echoCancellation, agc: st.autoGainControl, ns: st.noiseSuppression }),
+      "context: " + (actx ? `${actx.sampleRate} Hz · ${actx.state} · out ${Math.round(((actx.outputLatency || 0) + (actx.baseLatency || 0)) * 1000)} ms` : "—"),
+      `уровень: ${MicInfo.raw.toFixed(4)} · усиление ×${MicInfo.gain.toFixed(1)} · после усиления ${lastRms.toFixed(4)}`,
+      `услышано нот-кадров: ${MicInfo.voiced} · задержка наушников ${Math.round(userLag * 1000)} мс`,
+    ].join("\n");
+  }, 500);
+}
+// what the microphone gives — for the level bar, the "can't hear you" hint and the ?diag panel
+const MicInfo = { raw: 0, gain: 1, voiced: 0, heardAt: 0 };
 function micVoice(stream) {
   const src = actx.createMediaStreamSource(stream), split = actx.createChannelSplitter(2), out = actx.createGain();
   out.channelCount = 1; out.channelCountMode = "explicit";
@@ -1185,10 +1217,16 @@ function micVoice(stream) {
   src.connect(split);
   for (let c = 0; c < 2; c++) { split.connect(g[c], c); split.connect(lv[c], c); g[c].connect(out); g[c].gain.value = 0.5; }
   const b = new Float32Array(1024), e = [0, 0];
+  // auto level: a quiet mic (a Bluetooth headset on iPhone gives "phone call" sound, often very low)
+  // is lifted up to 8×, judged by the loudest singing heard lately; a normal mic stays at 1×
+  let peak = 0;
   setInterval(() => {
     for (let c = 0; c < 2; c++) { lv[c].getFloatTimeDomainData(b); let sum = 0; for (const v of b) sum += v * v; e[c] = 0.8 * e[c] + 0.2 * sum; }
     const [a0, a1] = e, one = a0 > a1 * 10 ? 0 : a1 > a0 * 10 ? 1 : -1;
     g[0].gain.value = one === -1 ? 0.5 : one === 0 ? 1 : 0; g[1].gain.value = one === -1 ? 0.5 : one === 1 ? 1 : 0;
+    const lvl = Math.sqrt((one === 1 ? a1 : one === 0 ? a0 : (a0 + a1) / 2) / b.length);
+    peak = Math.max(peak * 0.985, lvl);                              // forgets over ~20 s
+    MicInfo.raw = lvl; MicInfo.gain = out.gain.value = peak > 0.002 ? Math.min(8, Math.max(1, 0.08 / peak)) : out.gain.value;
   }, 300);
   return out;
 }

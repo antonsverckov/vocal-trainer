@@ -80,7 +80,12 @@ const I18N = (() => {
       "The run was interrupted by switching exercises — it wasn't saved. To keep a recording in «My progress», stop with «■ Stop».",
     "Проход остановлен — песня переходит в новую тональность. Нажми «Начать», когда будет готово.": "Run stopped — the song is moving to a new key. Press «Start» when it's ready.",
     "Микрофон включён — нажми «Начать» ещё раз.": "The microphone is on — press «Start» again.",
-    "ориентир": "start note", "песня длиннее 10 минут": "the song is longer than 10 minutes", "в песне не нашлось вокала": "no vocals found in the song",
+    "ориентир": "start note",
+    "Микрофон почти не слышит тебя. На iPhone с Bluetooth-наушниками звук с их микрофона бывает очень тихим: пой громче и ближе, или возьми проводные наушники (через переходник) — с ними надёжнее всего.":
+      "The microphone can barely hear you. On iPhone with Bluetooth headphones their mic is often very quiet: sing louder and closer, or use wired headphones (with an adapter) — they're the most reliable.",
+    "Микрофон почти не слышит тебя. Проверь, что браузеру разрешён микрофон и выбран нужный (значок микрофона в адресной строке), и пой чуть громче.":
+      "The microphone can barely hear you. Check that the browser is allowed to use the microphone and the right one is selected (the mic icon in the address bar), and sing a little louder.",
+    "Громкость микрофона: если полоска не двигается, когда поёшь, — микрофон тебя не слышит": "Microphone level: if the bar doesn't move while you sing, the microphone can't hear you", "песня длиннее 10 минут": "the song is longer than 10 minutes", "в песне не нашлось вокала": "no vocals found in the song",
     "не загрузился звук": "the sound didn't load", "Пока нет записей.": "No recordings yet.", "После следующего прохода здесь появится линия роста.": "After your next run a progress line appears here.",
     "Короче 10 секунд — в «Мой прогресс» не сохраняется.": "Under 10 seconds — not saved to «My progress».",
     "(без записи голоса — браузер не поддерживает запись)": "(no voice recording — this browser can't record)",
