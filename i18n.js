@@ -80,7 +80,7 @@ const I18N = (() => {
       "The run was interrupted by switching exercises — it wasn't saved. To keep a recording in «My progress», stop with «■ Stop».",
     "Проход остановлен — песня переходит в новую тональность. Нажми «Начать», когда будет готово.": "Run stopped — the song is moving to a new key. Press «Start» when it's ready.",
     "Микрофон включён — нажми «Начать» ещё раз.": "The microphone is on — press «Start» again.",
-    "ориентир": "start note",
+    "ориентир": "start note", "Есть вопросы? Пиши мне в Telegram": "Questions? Message me on Telegram", "Вопросы? Пиши мне": "Questions? Ask me", "Скрыть": "Hide",
     "Микрофон почти не слышит тебя. На iPhone с Bluetooth-наушниками звук с их микрофона бывает очень тихим: пой громче и ближе, или возьми проводные наушники (через переходник) — с ними надёжнее всего.":
       "The microphone can barely hear you. On iPhone with Bluetooth headphones their mic is often very quiet: sing louder and closer, or use wired headphones (with an adapter) — they're the most reliable.",
     "Микрофон почти не слышит тебя. Проверь, что браузеру разрешён микрофон и выбран нужный (значок микрофона в адресной строке), и пой чуть громче.":

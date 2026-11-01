@@ -259,6 +259,20 @@
     background: rgba(22,24,27,.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--line2); border-radius: 999px;
     padding: 7px 7px 7px 18px; box-shadow: 0 12px 40px rgba(0,0,0,.6); max-width: calc(100% - 32px); font-size: 14px; }
   .nowplay .go { padding: 8px 16px; font-size: 14px; }
+  /* «questions? → Telegram»: a frosted-glass pill at the bottom; steps aside while a recording plays */
+  .contact { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 9;
+    display: flex; align-items: center; gap: 4px; max-width: calc(100% - 24px); padding: 5px 5px 5px 16px; border-radius: 999px;
+    background: rgba(22, 24, 28, .55); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 10px 34px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
+    backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%); animation: ct-in .5s ease-out .6s both; }
+  .contact[hidden], .nowplay:not([hidden]) ~ .contact { display: none; }
+  .contact a { display: flex; align-items: center; gap: 9px; color: rgba(255,255,255,.92); text-decoration: none; font-size: 14px; white-space: nowrap; min-width: 0; padding: 4px 0; }
+  .contact svg { width: 18px; height: 18px; flex: none; fill: #2aabee; }
+  .contact .ct-text { overflow: hidden; text-overflow: ellipsis; } .contact .ct-short { display: none; }
+  .contact .ct-nick { color: var(--hit); font-weight: 600; }
+  .contact a:hover .ct-nick { text-decoration: underline; text-underline-offset: 3px; }
+  .contact .ct-x { flex: none; width: 28px; height: 28px; margin-left: 6px; border: 0; border-radius: 50%; background: rgba(255,255,255,.08); color: rgba(255,255,255,.6); font-size: 17px; line-height: 1; cursor: pointer; }
+  .contact .ct-x:hover { background: rgba(255,255,255,.16); color: #fff; }
+  @keyframes ct-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
   .tip { margin-top: 18px; color: var(--muted); font-size: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px 18px; }
   .tip b { color: var(--text); }
@@ -269,6 +283,8 @@
     .glabel { min-width: 0; width: 100%; }
     .controls .seg { display: flex; width: 100%; }
     .controls .seg button { flex: 1; min-width: 0; padding: 8px 4px; font-size: 13.5px; }
+    .contact a { font-size: 13px; gap: 7px; } .contact { padding-left: 13px; }
+    .contact .ct-long { display: none; } .contact .ct-short { display: inline; }
     #secSeg { flex-wrap: wrap; border-radius: 22px; gap: 2px; } #secSeg button { flex: 1 1 30%; white-space: nowrap; }
     .keysel { width: 100%; }
     .transport .tempo { width: 100%; justify-content: space-between; } .transport .go { flex: 1; }
@@ -415,6 +431,14 @@
   </div></div>
 
   <div class="nowplay" id="nowPlay" hidden><span id="nowPlayText"></span><button class="go" id="nowPlayStop">■ Стоп</button></div>
+  <div class="contact" id="contact">
+    <a href="https://t.me/antonsverchkov" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.4 4.3 2.9 11.4c-1.3.5-1.2 1.2-.2 1.5l4.7 1.5 1.8 5.6c.2.6.4.8.9.8.4 0 .6-.2.9-.4l2.3-2.2 4.7 3.5c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.9-1.4-1.5Zm-2.6 3.3-8.7 7.9-.3 3.6-1.6-5 9.9-6.3c.5-.3.9-.1.7.2Z"/></svg>
+      <span class="ct-text ct-long">Есть вопросы? Пиши мне в Telegram</span><span class="ct-text ct-short">Вопросы? Пиши мне</span>
+      <b class="ct-nick">@antonsverchkov</b>
+    </a>
+    <button type="button" class="ct-x" id="contactX" aria-label="Скрыть">×</button>
+  </div>
 
   <div class="tip">🎧 <b>Надень наушники</b> — иначе микрофон слышит пианино. Лучше проводные; с Bluetooth говори в микрофон компьютера/телефона, а не наушников (задержку наушников тренажёр учтёт сам после первого прохода). Начало ноты не считается (даём 0,1 с на атаку). Засчитывается только точная нота в нужной октаве — если поёшь на октаву выше или ниже, тренажёр подскажет.</div>
 </div>
@@ -1207,6 +1231,12 @@ if (/[?&]diag\b/.test(location.search)) {
       `услышано нот-кадров: ${MicInfo.voiced} · задержка наушников ${Math.round(userLag * 1000)} мс`,
     ].join("\n");
   }, 500);
+}
+// the Telegram pill: × hides it until the next visit
+{
+  const c = document.getElementById("contact");
+  try { if (sessionStorage.getItem("contactHidden")) c.hidden = true; } catch (e) {}
+  document.getElementById("contactX").onclick = () => { c.hidden = true; try { sessionStorage.setItem("contactHidden", "1"); } catch (e) {} };
 }
 // what the microphone gives — for the level bar, the "can't hear you" hint and the ?diag panel
 const MicInfo = { raw: 0, gain: 1, voiced: 0, heardAt: 0 };
