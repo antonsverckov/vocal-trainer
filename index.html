@@ -287,7 +287,7 @@
     .contact .ct-long { display: none; } .contact .ct-short { display: inline; }
     #secSeg { flex-wrap: wrap; border-radius: 22px; gap: 2px; } #secSeg button { flex: 1 1 30%; white-space: nowrap; }
     .keysel { width: 100%; }
-    .transport .tempo { width: 100%; justify-content: space-between; } .transport .go { flex: 1; }
+    .transport .tempo { width: 100%; justify-content: space-between; } .transport .tempo input { flex: 1; min-width: 0; width: auto; } .transport .go { flex: 1; }
     canvas { height: 420px; } .card { padding: 10px 12px; } .card .v { font-size: 18px; }
     /* phone: avatar + name in one row, the words and fragments use the full width below */
     .coach { grid-template-columns: 64px 1fr; gap: 12px; padding: 14px; border-radius: 24px; align-items: center; } .coach-av svg, .av-photo { width: 64px; height: 64px; }
@@ -814,7 +814,8 @@ function tick() {
   if (audio.paused) return;
   const lat = (actx.outputLatency || 0) + (actx.baseLatency || 0);
   const base = audio.currentTime - (lat + buf.length / actx.sampleRate / 2) * rate;   // track time of what is being sung
-  const now = base - userLag * rate;                                                      // ...as heard through headphones
+  const now = base - userLag * rate;      // scoring time: also minus the learned delay (headphones + the singer's own reaction)
+  const heard = heardNow();               // display time: exactly what sounds now — the bars, «Нужно спеть», «Сейчас:»
   analyser.getFloatTimeDomainData(buf);
   const f = detect(buf, actx.sampleRate);
   micBar.style.width = Math.min(100, Math.sqrt(lastRms / 0.15) * 100) + "%";
@@ -843,16 +844,18 @@ function tick() {
     devV.style.color = color;
   } else if (m != null) { youV.textContent = noteName(m); devV.textContent = "—"; devV.style.color = ""; }
   else { youV.textContent = "—"; devV.textContent = "—"; devV.style.color = ""; }
-  const cue = !tgt && ((current && current.cues) || []).find(([s0, e0]) => now >= s0 && now < e0 + 0.9);
-  const sylNow = tgt && ((current.syllables && current.syllables[NOTES.indexOf(tgt)]) || (current.lyrics && current.lyrics[NOTES.indexOf(tgt)]));
-  needV.textContent = tgt ? (sylNow ? `«${sylNow}» ${noteName(tgt[2])}` : noteName(tgt[2])) : cue ? "слушай: " + noteName(cue[2]) : "пауза";
-  showLabel(now);
+  const show = targetAt(heard), cue = !show && ((current && current.cues) || []).find(([s0, e0]) => heard >= s0 && heard < e0 + 0.9);
+  const sylNow = show && ((current.syllables && current.syllables[NOTES.indexOf(show)]) || (current.lyrics && current.lyrics[NOTES.indexOf(show)]));
+  needV.textContent = show ? (sylNow ? `«${sylNow}» ${noteName(show[2])}` : noteName(show[2])) : cue ? "слушай: " + noteName(cue[2]) : "пауза";
+  showLabel(heard);
   trail.push({ t: now, m, c: color }); while (trail.length && trail[0].t < now - 4 * rate) trail.shift();
   NOTES.forEach(([s, e], i) => { if (!stats[i].done && now > e && (!segRun || inSeg(segRun, i))) { stats[i].done = true; stats[i].hit = stats[i].n >= minFrames(s, e) && stats[i].ok / stats[i].n >= 0.5; } });
-  lastNow = now;
+  lastNow = heard;
   if (audio.ended) finish();
 }
-function paint() { if (!running) return; draw(lastNow); requestAnimationFrame(paint); }
+// the moment of the track that sounds right now (the player's position minus the audio output delay)
+function heardNow() { return audio.currentTime - ((actx.outputLatency || 0) + (actx.baseLatency || 0)) * rate; }
+function paint() { if (!running) return; if (!audio.paused) lastNow = heardNow(); draw(lastNow); requestAnimationFrame(paint); }
 
 // score a whole run for a given headphone delay
 function score(lag) {
@@ -1209,6 +1212,9 @@ async function countIn(fromTrack) {
   }
   box.hidden = true; goBtn.disabled = false;
   if (counting !== token) { token.osc.forEach(o => { try { o.stop(); } catch (e) {} }); return false; }
+  // «раз, два, три, четыре — Ми»: the first note comes on the very next beat, so a short lead-in of the
+  // recording is skipped in every exercise (1.5–5 s before the first note); a song keeps an intro longer than 4 s
+  if (first && first[0] - fromTrack > 0.05 && (!current.files || first[0] - fromTrack <= 4)) audio.currentTime = first[0] - 0.05;
   counting = null; return true;
 }
 
@@ -1255,7 +1261,7 @@ function micVoice(stream) {
     const [a0, a1] = e, one = a0 > a1 * 10 ? 0 : a1 > a0 * 10 ? 1 : -1;
     g[0].gain.value = one === -1 ? 0.5 : one === 0 ? 1 : 0; g[1].gain.value = one === -1 ? 0.5 : one === 1 ? 1 : 0;
     const lvl = Math.sqrt((one === 1 ? a1 : one === 0 ? a0 : (a0 + a1) / 2) / b.length);
-    peak = Math.max(peak * 0.985, lvl);                              // forgets over ~20 s
+    peak = Math.max(peak * 0.9, lvl);                                // a cough or a loud phrase is forgotten in ~2–3 s
     MicInfo.raw = lvl; MicInfo.gain = out.gain.value = peak > 0.002 ? Math.min(8, Math.max(1, 0.08 / peak)) : out.gain.value;
   }, 300);
   return out;
@@ -1384,6 +1390,8 @@ async function toMp3(blob) {
   } catch (e) { Diag.note("не получилось перевести в MP3 (" + (e.message || e) + ") — запись сохранена как " + extOf(blob.type).toUpperCase()); return blob; }
 }
 
+// the date on the student's own calendar (toISOString would give yesterday's date late at night)
+const localDay = ts => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const fmtDate = ts => new Date(ts).toLocaleString(I18N.en() ? "en-GB" : "ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 const exKey = () => (sel.sec === "songs" ? `songs/${sel.song}` : sel.sec === "course" ? `course/${sel.voice}/${sel.ex}` : sel.sec === "scales" ? `scales/${sel.voice}/${sel.key}` : `${sel.sec}/${sel.voice}/${sel.level}/${sel.key}`);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -1618,9 +1626,9 @@ const Progress = {
   mmss: s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`,
   file(a) {
     const clean = t => String(t).replace(/[:·\/\\?*"<>|]/g, " ").replace(/\s+/g, " ").trim();
-    const date = new Date(a.created).toISOString().slice(0, 10);
+    const date = localDay(a.created);
     const label = a.label && a.label !== fmtDate(a.created) ? ` — ${clean(a.label).slice(0, 40)}` : "";
-    const name = `${clean(a.title)} — ${date}${label} — ${a.pct}%.${extOf(a.mime)}`;
+    const name = `${clean(I18N.t(a.title))} — ${date}${label} — ${a.pct}%.${extOf(a.mime)}`;
     return new File([a.audio], name, { type: a.mime || "audio/webm" });
   },
   async send(a) {
@@ -1661,7 +1669,7 @@ const Progress = {
     const out = [];
     for (const a of all) out.push({ ...a, audio: a.audio ? await toB64(a.audio) : null });
     const blob = new Blob([JSON.stringify({ app: "vocal-trainer", version: 1, exported: Date.now(), attempts: out })], { type: "application/json" });
-    const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `${I18N.en() ? "my warm-up recordings" : "мои записи распевки"} ${new Date().toISOString().slice(0, 10)}.json`; link.click();
+    const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `${I18N.en() ? "my warm-up recordings" : "мои записи распевки"} ${localDay(Date.now())}.json`; link.click();
   },
   async importFile(file) {
     const data = JSON.parse(await file.text());
