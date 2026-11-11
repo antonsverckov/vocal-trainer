@@ -80,7 +80,7 @@ const I18N = (() => {
       "The run was interrupted by switching exercises — it wasn't saved. To keep a recording in «My progress», stop with «■ Stop».",
     "Проход остановлен — песня переходит в новую тональность. Нажми «Начать», когда будет готово.": "Run stopped — the song is moving to a new key. Press «Start» when it's ready.",
     "Микрофон включён — нажми «Начать» ещё раз.": "The microphone is on — press «Start» again.",
-    "ориентир": "start note", "Запускаю нейросеть…": "Starting the AI model…", "📖 Как пользоваться": "📖 How to use", "Понятно, поехали": "Got it, let's go", "Есть вопросы? Пиши мне в Telegram": "Questions? Message me on Telegram", "Вопросы? Пиши мне": "Questions? Ask me", "Скрыть": "Hide",
+    "ориентир": "start note", "Считаю темп…": "Measuring the tempo…", "Запускаю нейросеть…": "Starting the AI model…", "📖 Как пользоваться": "📖 How to use", "Понятно, поехали": "Got it, let's go", "Есть вопросы? Пиши мне в Telegram": "Questions? Message me on Telegram", "Вопросы? Пиши мне": "Questions? Ask me", "Скрыть": "Hide",
     "Микрофон почти не слышит тебя. На iPhone с Bluetooth-наушниками звук с их микрофона бывает очень тихим: пой громче и ближе, или возьми проводные наушники (через переходник) — с ними надёжнее всего.":
       "The microphone can barely hear you. On iPhone with Bluetooth headphones their mic is often very quiet: sing louder and closer, or use wired headphones (with an adapter) — they're the most reliable.",
     "Микрофон почти не слышит тебя. Проверь, что браузеру разрешён микрофон и выбран нужный (значок микрофона в адресной строке), и пой чуть громче.":
@@ -154,7 +154,7 @@ const I18N = (() => {
     [/^Не получилось сдвинуть песню: (.+)$/, "Couldn't shift the song: $1"],
     [/^(Обработано на видеокарте|Обработано без видеокарты) за (.+?) · голос найден в (\d+)% песни · нот (\d+)(.*)$/,
       (m, how, t, v, n, rest) => `${how.includes("без") ? "Processed without a GPU" : "Processed on the GPU"} in ${dur(t)} · voice found in ${v}% of the song · ${n} notes` +
-        rest.replace(/ · слов (\d+)/, " · $1 words").replace(" · слова не распознались", " · lyrics not recognised").replace(" · без слов — нажми «Пересчитать ноты»", " · no lyrics — press «Reprocess»")
+        rest.replace(/ · темп (\d+) BPM/, " · tempo $1 BPM").replace(" · темп не определён", " · tempo not detected").replace(/ · слов (\d+)/, " · $1 words").replace(" · слова не распознались", " · lyrics not recognised").replace(" · без слов — нажми «Пересчитать ноты»", " · no lyrics — press «Reprocess»")
           .replace(/ · ⚠ сбой нейросети на (\d+) из (\d+) кусков — там нот не будет/, " · ⚠ the model failed on $1 of $2 parts — no notes there")],
     [/^Занято (.+) МБ из доступных ~(.+) ГБ$/, "Used $1 MB of ~$2 GB available"],
     [/^Удалить запись «(.+)»\? Её нельзя будет вернуть\.$/, "Delete the recording «$1»? It can't be undone."],

@@ -20,6 +20,7 @@
 <script src="i18n.js"></script>
 <script src="separate.js"></script>
 <script src="melody.js"></script>
+<script src="tempo.js"></script>
 <script src="lyrics.js"></script>
 <script src="lib/lame.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -664,11 +665,11 @@ function choose() {
   document.getElementById("songBar").hidden = !songs;
   document.getElementById("bpmUnit").textContent = songs ? "%" : "BPM";
   goBtn.disabled = !NOTES.length;
-  if (songs) Songs.renderBar();
+  if (songs) { Songs.renderBar(); const r = Songs.list.find(x => String(x.id) === sel.song); if (r) Songs.tempoLater(r); }
   const k = C.keys.find(x => x.id === sel.key);
   keyName = songs ? (current.keyName || "C major") : course ? "C major" : k.name;   // the course moves through many keys: neutral spelling
   const songKey = songs && current.keyName && C.keys.find(x => x.name === current.keyName);
-  document.getElementById("title").textContent = songs ? (current.title ? `Песня: ${current.title}` + (songKey ? ` · ${songKey.ru}` : "") : "Мои песни")
+  document.getElementById("title").textContent = songs ? (current.title ? `Песня: ${current.title}` + (songKey ? ` · ${songKey.ru}` : "") + (current.tempo ? ` · ♩ ${current.tempo} BPM` : "") : "Мои песни")
     : `${C.sections[sel.sec]}: ${course ? ex.title : k.ru} · ${C.voices[sel.voice].toLowerCase()}` + (levelled ? ` · ${C.levels[sel.level].toLowerCase()}` : "");
   try { localStorage.setItem("sel", JSON.stringify(sel)); } catch (e) {}
   showLabel(0);
@@ -2118,8 +2119,21 @@ const Songs = {
     C.items["songs/" + r.id] = { title: r.title, audio: inst, files: [inst, orig], bpm: 100, shift: k,
                                  notes: k ? r.notes.map(([a, b, m]) => [a, b, m + k]) : r.notes,
                                  line: k ? r.line.map(([t, m]) => [t, m == null ? null : m + k]) : r.line,
-                                 keyName: transposeKey(base, k),
+                                 keyName: transposeKey(base, k), tempo: r.tempo || 0,
                                  lyrics: r.words && r.words.length ? Lyrics.perNote(r.notes, r.words) : null };
+  },
+  // a song processed before tempo detection: measured quietly the first time it is opened, then kept
+  async tempoLater(r) {
+    if (r.tempo !== undefined || r.tempoBusy) return;
+    r.tempoBusy = true;
+    try {
+      const buf = await new OfflineAudioContext(2, 1, 44100).decodeAudioData(await r.inst.arrayBuffer());
+      const t = await Tempo.detect(buf.getChannelData(0), buf.numberOfChannels > 1 ? buf.getChannelData(1) : buf.getChannelData(0));
+      r.tempo = t ? t.bpm : 0;
+      delete r.tempoBusy; await DB.tx("readwrite", s => s.put(r), "songs");
+      const item = C.items["songs/" + r.id]; if (item) item.tempo = r.tempo;
+      if (sel.sec === "songs" && sel.song === String(r.id) && !running) choose(); else this.renderBar();
+    } catch (e) { delete r.tempoBusy; }
   },
   // move a song up or down (semitones): instrumental and original are pitch-shifted once, kept, tempo unchanged
   async setShift(r, k) {
@@ -2176,7 +2190,8 @@ const Songs = {
     sl.hidden = !r; if (r) { sl.value = r.lang || Lyrics.guessLang(r.title); sl.disabled = this.busy; }
     info.hidden = !r || !r.stats;
     if (r && r.stats) info.textContent = `${r.backend === "webgpu" ? "Обработано на видеокарте" : "Обработано без видеокарты"} за ${fmtLeft(r.stats.secs)} · ` +
-      `голос найден в ${r.stats.voiced}% песни · нот ${r.notes.length}` + (r.words ? (r.words.length ? ` · слов ${r.words.length}` : " · слова не распознались") : " · без слов — нажми «Пересчитать ноты»") + (r.stats.failed ? ` · ⚠ сбой нейросети на ${r.stats.failed} из ${r.stats.segments} кусков — там нот не будет` : "");
+      `голос найден в ${r.stats.voiced}% песни · нот ${r.notes.length}` +
+      (r.tempo ? ` · темп ${r.tempo} BPM` : r.tempo === 0 ? " · темп не определён" : "") + (r.words ? (r.words.length ? ` · слов ${r.words.length}` : " · слова не распознались") : " · без слов — нажми «Пересчитать ноты»") + (r.stats.failed ? ` · ⚠ сбой нейросети на ${r.stats.failed} из ${r.stats.segments} кусков — там нот не будет` : "");
   },
   job(text, frac, isError) {
     const box = document.getElementById("songJob");
@@ -2212,6 +2227,9 @@ const Songs = {
         words = await Lyrics.words(vocals[0], vocals[1], lang, (p, down) => this.job(
           p < 0.4 && down ? `Загружаю распознавание слов (только в первый раз, ~210 МБ)… ${Math.round(p / 0.4 * 100)}%` : "Распознаю слова песни…", 0.86 + p * 0.04));
       } catch (e) { words = []; }                    // a song without words is still a song
+      // the tempo, from the backing track (drums and attacks are clearest there); 0 = no steady beat
+      this.job("Считаю темп…", 0.9);
+      let tempo = 0; try { const t = await Tempo.detect(instrumental[0], instrumental[1]); tempo = t ? t.bpm : 0; } catch (e) {}
       // ready to sing now (instrumental as WAV in memory); the compact MP3 is made in the background, then stored
       const voiced = line.filter(p => p[1] != null).length / Math.max(1, line.length);
       const key = again && again.keyManual ? again.key : keyFor(Melody.key(notes)).name;   // a key the student chose stays
@@ -2220,7 +2238,7 @@ const Songs = {
         this.list = this.list.filter(x => x !== again);
       }
       const rec = { id: again ? again.id : Date.now(), title, created: again ? again.created : Date.now(), duration: ab.duration, notes, line: line.filter((_, i) => i % 2 === 0),
-                    inst: wavBlob(instrumental, 44100), orig: file, backend: be, key, keyManual: !!(again && again.keyManual), words, lang,
+                    inst: wavBlob(instrumental, 44100), orig: file, backend: be, key, tempo, keyManual: !!(again && again.keyManual), words, lang,
                     stats: { voiced: Math.round(voiced * 100), failed, segments, secs: Math.round((performance.now() - t0) / 1000) } };
       this.list.unshift(rec); this.mount(rec);
       this.busy = false;
