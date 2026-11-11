@@ -104,6 +104,16 @@
   .modal-box { max-width: 440px; background: var(--panel2); border: 1px solid var(--line2); border-radius: var(--r-lg); padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
   .modal-box h3 { margin: 0 0 10px; font-size: 20px; font-weight: 600; }
   .modal-box p { margin: 0 0 12px; color: var(--muted); }
+  /* «Как пользоваться»: an eye-catching button under the title, a short step list in a window */
+  .howbtn { display: inline-flex; align-items: center; gap: 8px; margin: -8px 0 24px; padding: 11px 20px; border-radius: 999px; cursor: pointer;
+    font: 600 15px Manrope, sans-serif; color: var(--text); background: rgba(0,218,232,.1); border: 1px solid rgba(0,218,232,.55);
+    box-shadow: 0 0 0 4px rgba(0,218,232,.08); transition: background .15s, transform .15s; }
+  .howbtn:hover { background: rgba(0,218,232,.2); transform: translateY(-1px); }
+  .how-box { max-width: 560px; max-height: calc(100vh - 32px); overflow-y: auto; }
+  .how-body ol { margin: 0 0 12px; padding-left: 22px; display: grid; gap: 9px; color: var(--muted); font-size: 15px; line-height: 1.45; }
+  .how-body li b { color: var(--text); }
+  .how-body li::marker { color: var(--hit); font-weight: 700; }
+  .how-more { font-size: 14px; }
   .modal-box .hint-note { color: var(--accent); font-weight: 600; font-size: 17px; }
   .zoom { display: inline-flex; align-items: center; gap: 6px; }
   .zoom button { background: rgba(255,255,255,.08); color: var(--text); border: 1px solid var(--line2); border-radius: 999px; width: 28px; height: 28px; font-size: 16px; line-height: 1; cursor: pointer; }
@@ -111,6 +121,7 @@
   .countin { position: absolute; inset: 0; display: grid; place-items: center; font-size: 120px; font-weight: 700;
     color: var(--accent); background: rgba(0,0,0,.35); pointer-events: none; font-variant-numeric: tabular-nums; }
   .countin.beat { animation: countBeat .45s ease-out; }
+  .countin.bar2 { color: var(--hit); }
   @keyframes countBeat { from { transform: scale(1.35); opacity: .35; } to { transform: none; opacity: 1; } }
   .songadd { display: inline-flex; align-items: center; padding: 10px 18px; font-size: 14px; }
   .songjob { background: rgba(0,218,232,.06); border: 1px solid rgba(0,218,232,.28); border-radius: var(--r-md); padding: 12px 16px; font-size: 14px; }
@@ -308,6 +319,7 @@
 
   <h1 id="title">Тренажёр распевки</h1>
   <p class="sub">Пой ноты, которые плывут по нотной дорожке, — на каждой подписано, какая это нота. Линия твоего голоса сразу покажет, попадаешь ли ты.</p>
+  <button type="button" class="howbtn" id="howOpen">📖 Как пользоваться</button>
 
   <section class="panel controls">
     <div class="group"><span class="glabel">Упражнение</span><div class="seg" id="secSeg"></div></div>
@@ -423,9 +435,26 @@
     </div>
   </section>
 
+  <div class="modal" id="how" hidden><div class="modal-box how-box">
+    <h3>📖 Как пользоваться</h3>
+    <div class="how-body"><ol>
+      <li><b>Надень наушники</b> — лучше проводные. Без них микрофон слышит пианино вместо тебя.</li>
+      <li><b>Выбери упражнение</b> вверху: Тональности, Аккорды, Интервалы, Курс или Мои песни. Затем голос — Девушки или Парни — и тональность.</li>
+      <li>Нажми <b>«▶ Начать»</b> и разреши браузеру микрофон.</li>
+      <li>Прозвучит <b>первая нота</b> и счёт <b>«раз, два, три, четыре»</b> — два раза. На втором счёте вдохни, после «четыре» — пой.</li>
+      <li><b>Пой ноты</b>, которые подъезжают к вертикальной линии. На каждой подписана нота (в «Курсе» — слог).</li>
+      <li><b>Смотри на линию голоса:</b> <span style="color:var(--hit)">бирюзовая</span> — ты в ноте, <span style="color:var(--high)">оранжевая</span> — выше, <span style="color:var(--low)">фиолетовая</span> — ниже.</li>
+      <li><b>⏸ Пауза</b> — учитель разберёт ошибки: «▶ Как надо», «🎤 Как спел ты», «↻ Спеть этот кусок».</li>
+      <li>Трудно успевать — <b>убавь темп</b> ползунком.</li>
+      <li><b>«Мой прогресс»</b> внизу — каждый проход от 10 секунд сохраняется сам. Запись можно отправить педагогу 📤.</li>
+      <li><b>«Мои песни»</b> — загрузи свою песню (MP3): тренажёр уберёт голос певца и покажет ноты. Лучше на компьютере, обработка 2–5 минут.</li>
+    </ol>
+    <p class="how-more">Есть вопрос — жми «💬 Вопрос учителю» или пиши в Telegram.</p></div>
+    <div class="pbtns"><button class="go" id="howOk">Понятно, поехали</button></div>
+  </div></div>
   <div class="modal" id="hint" hidden><div class="modal-box">
     <h3>🎧 Сначала — нота-ориентир</h3>
-    <p>Сейчас прозвучит <b>первая нота упражнения</b> — запомни её и ориентируйся на неё. Сразу за ней отсчёт: <b>раз, два, три, четыре</b> — и поехали.</p>
+    <p>Сейчас прозвучит <b>первая нота упражнения</b> — запомни её и ориентируйся на неё. Дальше счёт: <b>раз, два, три, четыре</b> — и ещё раз <b>раз, два, три, четыре</b> (вдохни) — и поехали.</p>
     <p class="hint-note" id="hintNote"></p>
     <div class="pbtns"><button class="go" id="hintOk">Окей</button><button class="ghost" id="hintNo">Отмена</button></div>
   </div></div>
@@ -1171,9 +1200,10 @@ function firstNoteHint(fromTrack) {
   });
 }
 
-// Count-in «1 2 3 4» before the singing starts, in the exercise's tempo (on the audio clock):
-// on «1» the first note to sing sounds for two beats — a pitch to aim for — then clicks on «3» and «4»;
-// big numbers over the note lane, and that note with its syllable in «Нужно спеть».
+// Count-in of two bars before the singing starts, in the exercise's tempo (on the audio clock):
+// bar 1 — on «1» the first note to sing sounds for two beats (a pitch to aim for), clicks on «3» and «4»;
+// bar 2 — «1 2 3 4» clicks only: time to breathe in, and the first note comes on the next «1».
+// Big numbers over the note lane (bar 2 in colour), and that note with its syllable in «Нужно спеть».
 // Returns false when it was cancelled (Стоп, another exercise).
 let counting = null, countOut = null;
 async function countIn(fromTrack) {
@@ -1184,6 +1214,10 @@ async function countIn(fromTrack) {
     const syl = current.syllables && current.syllables[NOTES.indexOf(first)];
     needV.textContent = `Готовься: ${syl ? `«${syl}» ` : ""}${noteName(first[2])}`;
   }
+  // «…три, четыре — Ми»: after bar 2 the first note comes on the very next beat, so a short lead-in of the
+  // recording is skipped in every exercise (1.5–5 s before the first note); a song keeps an intro longer than 4 s.
+  // The jump is made now, while the count runs, so the player has the sound ready when it starts
+  if (first && first[0] - fromTrack > 0.05 && (!current.files || first[0] - fromTrack <= 4)) audio.currentTime = first[0] - 0.05;
   if (!countOut) { countOut = actx.createGain(); countOut.connect(toSpeakers()); }
   const t0 = actx.currentTime + 0.05;
   token.osc = [];
@@ -1199,22 +1233,22 @@ async function countIn(fromTrack) {
       o.connect(g); g.connect(countOut); o.start(t0); o.stop(end + 0.02); token.osc.push(o);
     });
   }
-  for (let i = first ? 2 : 0; i < 4; i++) {                                // clicks (all four if there is no note)
+  const BEATS = 8;
+  for (let i = first ? 2 : 0; i < BEATS; i++) {                            // clicks (the note takes beats 1–2 of bar 1)
     const o = actx.createOscillator(), g = actx.createGain(), at = t0 + i * beat;
-    o.frequency.value = i ? 1000 : 1500;
+    o.frequency.value = i % 4 ? 1000 : 1500;                               // «1» of a bar is higher
     g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(0.3, at + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.07);
     o.connect(g); g.connect(countOut); o.start(at); o.stop(at + 0.08); token.osc.push(o);
   }
   goBtn.disabled = true; stopBtn.hidden = false;
-  for (let i = 1; i <= 4 && counting === token; i++) {
-    box.textContent = i; box.hidden = false; box.classList.remove("beat"); void box.offsetWidth; box.classList.add("beat");
-    await new Promise(r => setTimeout(r, beat * 1000));
+  for (let i = 0; i < BEATS && counting === token; i++) {
+    box.textContent = i % 4 + 1; box.hidden = false; box.classList.toggle("bar2", i >= 4);
+    box.classList.remove("beat"); void box.offsetWidth; box.classList.add("beat");
+    // wait on the audio clock, so the numbers stay with the clicks over both bars
+    await new Promise(r => setTimeout(r, Math.max(0, (t0 + (i + 1) * beat - actx.currentTime) * 1000)));
   }
-  box.hidden = true; goBtn.disabled = false;
+  box.hidden = true; box.classList.remove("bar2"); goBtn.disabled = false;
   if (counting !== token) { token.osc.forEach(o => { try { o.stop(); } catch (e) {} }); return false; }
-  // «раз, два, три, четыре — Ми»: the first note comes on the very next beat, so a short lead-in of the
-  // recording is skipped in every exercise (1.5–5 s before the first note); a song keeps an intro longer than 4 s
-  if (first && first[0] - fromTrack > 0.05 && (!current.files || first[0] - fromTrack <= 4)) audio.currentTime = first[0] - 0.05;
   counting = null; return true;
 }
 
@@ -1237,6 +1271,14 @@ if (/[?&]diag\b/.test(location.search)) {
       `услышано нот-кадров: ${MicInfo.voiced} · задержка наушников ${Math.round(userLag * 1000)} мс`,
     ].join("\n");
   }, 500);
+}
+// «Как пользоваться»
+{
+  const how = document.getElementById("how"), close = () => { how.hidden = true; };
+  document.getElementById("howOpen").onclick = () => { how.hidden = false; document.getElementById("howOk").focus(); };
+  document.getElementById("howOk").onclick = close;
+  how.addEventListener("click", e => { if (e.target === how) close(); });       // a tap outside the window closes it
+  addEventListener("keydown", e => { if (e.key === "Escape" && !how.hidden) close(); });
 }
 // the Telegram pill: × hides it until the next visit
 {

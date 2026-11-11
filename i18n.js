@@ -80,7 +80,7 @@ const I18N = (() => {
       "The run was interrupted by switching exercises — it wasn't saved. To keep a recording in «My progress», stop with «■ Stop».",
     "Проход остановлен — песня переходит в новую тональность. Нажми «Начать», когда будет готово.": "Run stopped — the song is moving to a new key. Press «Start» when it's ready.",
     "Микрофон включён — нажми «Начать» ещё раз.": "The microphone is on — press «Start» again.",
-    "ориентир": "start note", "Есть вопросы? Пиши мне в Telegram": "Questions? Message me on Telegram", "Вопросы? Пиши мне": "Questions? Ask me", "Скрыть": "Hide",
+    "ориентир": "start note", "📖 Как пользоваться": "📖 How to use", "Понятно, поехали": "Got it, let's go", "Есть вопросы? Пиши мне в Telegram": "Questions? Message me on Telegram", "Вопросы? Пиши мне": "Questions? Ask me", "Скрыть": "Hide",
     "Микрофон почти не слышит тебя. На iPhone с Bluetooth-наушниками звук с их микрофона бывает очень тихим: пой громче и ближе, или возьми проводные наушники (через переходник) — с ними надёжнее всего.":
       "The microphone can barely hear you. On iPhone with Bluetooth headphones their mic is often very quiet: sing louder and closer, or use wired headphones (with an adapter) — they're the most reliable.",
     "Микрофон почти не слышит тебя. Проверь, что браузеру разрешён микрофон и выбран нужный (значок микрофона в адресной строке), и пой чуть громче.":
@@ -217,7 +217,20 @@ const I18N = (() => {
   const HTML = {
     ".pnote": "Every run of 10 seconds or more is saved automatically — even if you stop halfway — with your voice recording, result and date. Recordings are stored <b>only in this browser on this device</b> (your phone will have its own history). To move them or keep them safe, use «Download my recordings», and on the other device «Load recordings».",
     ".tip": "🎧 <b>Put on headphones</b> — otherwise the microphone hears the piano. Wired ones are best; with Bluetooth, sing into your computer's/phone's microphone, not the headset's (the trainer learns your headphone delay by itself after the first run). The very start of a note isn't scored (0.1 s is allowed for the onset). Only the exact note in the right octave counts — if you sing an octave higher or lower, the trainer will tell you.",
-    "#hint p:not(#hintNote)": "Now you'll hear <b>the first note of the exercise</b> — remember it and use it as your reference. Right after it comes the count-in: <b>one, two, three, four</b> — and off we go.",
+    ".how-body": `<ol>
+      <li><b>Put on headphones</b> — wired ones are best. Without them the microphone hears the piano instead of you.</li>
+      <li><b>Choose an exercise</b> at the top: Warm-ups, Chords, Intervals, Course or My songs. Then the voice — Female or Male — and the key.</li>
+      <li>Press <b>«▶ Start»</b> and allow the browser to use the microphone.</li>
+      <li>You'll hear <b>the first note</b> and the count <b>«one, two, three, four»</b> — twice. Breathe in on the second count; after «four», sing.</li>
+      <li><b>Sing the notes</b> as they reach the vertical line. Each one is labelled with its note (in «Course» — with its syllable).</li>
+      <li><b>Watch your voice line:</b> <span style="color:var(--hit)">teal</span> — on pitch, <span style="color:var(--high)">orange</span> — sharp, <span style="color:var(--low)">purple</span> — flat.</li>
+      <li><b>⏸ Pause</b> — the teacher goes through your mistakes: «▶ How it should sound», «🎤 How you sang», «↻ Sing this part».</li>
+      <li>Too fast? <b>Lower the tempo</b> with the slider.</li>
+      <li><b>«My progress»</b> below — every run of 10 seconds or more is saved automatically. You can send a recording to your teacher 📤.</li>
+      <li><b>«My songs»</b> — upload your own song (MP3): the trainer removes the singer's voice and shows the notes. Best on a computer; processing takes 2–5 minutes.</li>
+    </ol>
+    <p class="how-more">Got a question? Press «💬 Ask the teacher» or message me on Telegram.</p>`,
+    "#hint p:not(#hintNote)": "Now you'll hear <b>the first note of the exercise</b> — remember it and use it as your reference. Then the count: <b>one, two, three, four</b> — and once more <b>one, two, three, four</b> (breathe in) — and off we go.",
   };
   let observer = null;
   function start() {
