@@ -65,16 +65,27 @@ const Lyrics = (() => {
     return clean.map(([s, e, w]) => [Math.round(s * 100) / 100, Math.round(e * 100) / 100, w]);
   }
 
-  // one word per note: a word goes under the first note it is sung on; the notes it is held over stay empty
+  // one word per note. Whisper's word times are off by 0.1–0.3 s, so «the first note after the word starts»
+  // often picked the neighbour: a word now goes to the note it overlaps most in time — and when it is sung
+  // over several notes (a melisma), to the first of them that holds a good part of it
   function perNote(notes, ws) {
     const out = notes.map(() => "");
     let k = 0;
     for (const [s, e, w] of ws) {
-      while (k < notes.length && notes[k][1] <= s - 0.05) k++;
-      let i = k;
-      if (i >= notes.length) break;
-      if (notes[i][0] > e + 0.25) continue;                // no note under this word (e.g. a spoken bit)
-      while (out[i] && i + 1 < notes.length && notes[i + 1][0] < e) i++;   // two short words on one note: next note
+      while (k < notes.length && notes[k][1] <= s - 0.4) k++;
+      const ov = [];
+      for (let i = k; i < notes.length && notes[i][0] < e + 0.4; i++)
+        ov.push([i, Math.min(e, notes[i][1]) - Math.max(s, notes[i][0])]);
+      if (!ov.length) continue;                                   // no note near this word (a spoken bit)
+      const max = Math.max(...ov.map(o => o[1]));
+      let i;
+      if (max > 0) i = ov.find(o => o[1] >= max * 0.5)[0];
+      else {                                                       // touches no note: the nearest start, if close
+        const near = ov.reduce((a, b) => (Math.abs(notes[b[0]][0] - s) < Math.abs(notes[a[0]][0] - s) ? b : a));
+        if (Math.abs(notes[near[0]][0] - s) > 0.35) continue;
+        i = near[0];
+      }
+      if (out[i] && i + 1 < notes.length && notes[i + 1][0] < e) i++;   // two words on one note: the next one
       out[i] = out[i] ? out[i] + " " + w : w;
     }
     return out;

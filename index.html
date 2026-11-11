@@ -350,8 +350,8 @@
       <button class="go" id="go">▶ Начать</button>
       <button class="stop" id="stop" hidden>■ Стоп</button>
       <button class="stop" id="askOpen" type="button">💬 Вопрос учителю</button>
-      <div class="monitor"><button class="stop" id="monBtn" type="button" title="Твой голос в наушниках вместе с музыкой. Только в наушниках — из колонок будет свист">🎧 Слышать себя</button>
-        <input type="range" id="monVol" min="0" max="150" value="80" title="Громкость твоего голоса в наушниках" hidden></div>
+      <div class="monitor"><button class="stop" id="monBtn" type="button" title="Твой голос в наушниках вместе с музыкой. Включится после «▶ Начать». Только в наушниках — из колонок будет свист">🎧 Слышать себя</button>
+        <input type="range" id="monVol" min="0" max="150" value="80" title="Громкость твоего голоса в наушниках" hidden><span class="muted" id="monLat"></span></div>
       <div class="muted" id="monNote" hidden style="flex-basis:100%"></div>
     </div>
   </section>
@@ -782,11 +782,6 @@ function draw(now) {
     ctx.fillStyle = st && st.done ? "#ffffff" : "#fcfcfd";
     ctx.font = `600 ${Math.min(20, Math.max(12, h * 0.6))}px -apple-system, sans-serif`;
     ctx.textBaseline = "middle";
-    const word = current && current.lyrics && current.lyrics[i];
-    if (word) {                                      // the sung word under its note
-      ctx.save(); ctx.fillStyle = "#ffe680"; ctx.font = "600 18px Manrope, sans-serif"; ctx.textBaseline = "top";
-      ctx.fillText(word, x0 + 2, top + h + 3); ctx.restore();
-    }
     const syl = current && current.syllables && current.syllables[i];
     if (syl) { if (w > 16) ctx.fillText(I18N.syl(syl), x0 + 8, y(m) + 0.5); }   // the course: sing the syllable
     else if (w > 34) ctx.fillText(noteName(m), x0 + 10, y(m) + 0.5);
@@ -835,6 +830,28 @@ function draw(now) {
     if (q.t - p.t > 0.08 || q.m == null || p.m == null) continue;
     ctx.strokeStyle = q.c; ctx.lineWidth = 4; ctx.lineCap = "round";
     ctx.beginPath(); ctx.moveTo(x(p.t), y(p.m)); ctx.lineTo(x(q.t), y(q.m)); ctx.stroke();
+  }
+  // the song's words: two rows below their note, on a dark chip, drawn last so nothing covers them;
+  // a word that would run into the previous one steps down a line
+  const lyr = current && current.lyrics;
+  if (lyr) {
+    ctx.save();
+    ctx.font = "700 19px -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Arial, sans-serif";
+    ctx.textBaseline = "middle";
+    const bh = 28, padX = 8, gap = Math.max(2 * rowH, 34);
+    let prevRight = -Infinity, prevY = null;
+    NOTES.forEach(([s, e, m], i) => {
+      const w = lyr[i]; if (!w) return;
+      const x0 = x(s); if (x0 > W || x(e) < -300) return;
+      const tw = ctx.measureText(w).width;
+      let yy = Math.min(H - bh / 2 - 3, y(m) + gap);
+      if (prevY != null && x0 - padX < prevRight + 6 && Math.abs(yy - prevY) < bh) yy = Math.min(H - bh / 2 - 3, prevY + bh + 3) === prevY ? prevY - bh - 3 : Math.min(H - bh / 2 - 3, prevY + bh + 3);
+      ctx.fillStyle = "rgba(6, 8, 12, .85)";
+      ctx.beginPath(); ctx.roundRect(x0 - padX, yy - bh / 2, tw + 2 * padX, bh, 9); ctx.fill();
+      ctx.fillStyle = "#7cc8ff"; ctx.fillText(w, x0, yy + 1);
+      prevRight = x0 + tw + padX; prevY = yy;
+    });
+    ctx.restore();
   }
 }
 
@@ -1326,10 +1343,10 @@ const Monitor = {
     // the round trip: mic input + one processing block + output (as the browser reports them)
     const tr = micStream && micStream.getAudioTracks()[0], inLat = tr && tr.getSettings ? tr.getSettings().latency || 0 : 0;
     const out = actx ? Math.round(((actx.outputLatency || 0) + (actx.baseLatency || 0) + inLat + 128 / actx.sampleRate) * 1000) : 0;
-    note.hidden = !this.on;
-    note.textContent = !this.on ? "" : !this.gain ? "Голос появится в наушниках, когда нажмёшь «▶ Начать» и разрешишь микрофон. Только в наушниках — из колонок будет свист."
-      : out > 90 ? `Задержка ~${out} мс — похоже на Bluetooth, это задержка самого радиоканала. Без задержки: на AirPods включи режим «Прозрачность» и слушай себя вживую, или возьми проводные наушники.`
-      : `Задержка ~${out} мс. Только в наушниках — из колонок будет свист. Совсем без задержки — кнопка Direct Monitor на аудиокарте или «Прозрачность» на AirPods.`;
+    // just the delay next to the slider; a line of text only when something needs saying (Bluetooth)
+    document.getElementById("monLat").textContent = this.on && this.gain ? `~${out} мс` : "";
+    const say = !this.on ? "" : out > 90 && this.gain ? `Задержка ~${out} мс — похоже на Bluetooth, это задержка самого радиоканала. Без задержки: на AirPods включи режим «Прозрачность» и слушай себя вживую, или возьми проводные наушники.` : "";
+    note.hidden = !say; note.textContent = say;
   },
 };
 Monitor.init();
