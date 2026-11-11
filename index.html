@@ -73,6 +73,12 @@
   .go { background: var(--accent); color: var(--on-accent); border: 0; border-radius: 999px; padding: 12px 26px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform .1s, filter .15s; }
   .go:hover { filter: brightness(1.08); } .go:active { transform: scale(.98); }
   .go:disabled { opacity: .5; cursor: default; }
+  .seek { display: flex; align-items: center; gap: 10px; margin: 10px 2px 0; }
+  .seek input { flex: 1; min-width: 0; accent-color: var(--hit); }
+  .seek button { background: none; border: 1px solid var(--line2); color: var(--text); border-radius: 50%; width: 32px; height: 32px; cursor: pointer; flex: none; }
+  .seek span { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 86px; text-align: right; }
+  .musvol { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+  .musvol input { width: 90px; accent-color: var(--accent); }
   .monitor { display: inline-flex; align-items: center; gap: 8px; }
   .monitor #monBtn.on { border-color: var(--hit); color: var(--hit); background: rgba(0,218,232,.08); }
   .monitor input { width: 90px; accent-color: var(--hit); }
@@ -350,6 +356,7 @@
       <button class="go" id="go">▶ Начать</button>
       <button class="stop" id="stop" hidden>■ Стоп</button>
       <button class="stop" id="askOpen" type="button">💬 Вопрос учителю</button>
+      <label class="musvol" title="Громкость музыки (минусовки)">🎵 Музыка <input type="range" id="musVol" min="0" max="150" value="100"></label>
       <div class="monitor"><button class="stop" id="monBtn" type="button" title="Твой голос в наушниках вместе с музыкой. Включится после «▶ Начать». Только в наушниках — из колонок будет свист">🎧 Слышать себя</button>
         <input type="range" id="monVol" min="0" max="150" value="80" title="Громкость твоего голоса в наушниках" hidden><span class="muted" id="monLat"></span></div>
       <div class="muted" id="monNote" hidden style="flex-basis:100%"></div>
@@ -359,6 +366,9 @@
   <section class="stagewrap">
     <div class="now" id="nowLabel" hidden></div>
     <div class="stage"><canvas id="cv"></canvas><div class="countin" id="countIn" hidden></div></div>
+    <div class="seek"><button type="button" id="seekHome" title="В начало">⏮</button>
+      <input type="range" id="seek" min="0" max="10" step="0.1" value="0" title="Перемотай, когда проход остановлен или на паузе, — и «Начать» пойдёт с этого места">
+      <span id="seekT">0:00</span></div>
   <div class="readout">
     <div class="card"><div class="k">Нужно спеть</div><div class="v" id="needV">—</div></div>
     <div class="card"><div class="k">Ты поёшь</div><div class="v" id="youV">—</div><div class="miclvl" title="Громкость микрофона: если полоска не двигается, когда поёшь, — микрофон тебя не слышит"><i id="micBar"></i></div></div>
@@ -680,6 +690,7 @@ function choose() {
     : `${C.sections[sel.sec]}: ${course ? ex.title : k.ru} · ${C.voices[sel.voice].toLowerCase()}` + (levelled ? ` · ${C.levels[sel.level].toLowerCase()}` : "");
   try { localStorage.setItem("sel", JSON.stringify(sel)); } catch (e) {}
   showLabel(0);
+  if (typeof Seek !== "undefined") Seek.reset();
   draw(0);
   if (typeof Progress !== "undefined") Progress.render();
 }
@@ -909,7 +920,7 @@ function tick() {
 }
 // the moment of the track that sounds right now (the player's position minus the audio output delay)
 function heardNow() { return audio.currentTime - ((actx.outputLatency || 0) + (actx.baseLatency || 0)) * rate; }
-function paint() { if (!running) return; if (!audio.paused) lastNow = heardNow(); draw(lastNow); requestAnimationFrame(paint); }
+function paint() { if (!running) return; if (!audio.paused) lastNow = heardNow(); draw(lastNow); Seek.show(lastNow); requestAnimationFrame(paint); }
 
 // score a whole run for a given headphone delay
 function score(lag) {
@@ -955,7 +966,7 @@ function finishSegment() {
   const idx = NOTES.map((n, i) => i).filter(i => inSeg(g, i));
   idx.forEach(i => { stats[i].hit = hits[i]; stats[i].done = true; });
   draw(lastNow);
-  const hit = idx.filter(i => hits[i]).length, pct = Math.round(100 * hit / idx.length);
+  const hit = idx.filter(i => hits[i]).length, pct = idx.length ? Math.round(100 * hit / idx.length) : 0;
   result.innerHTML = `<b>${esc(g.title)}: ${hit} из ${idx.length} нот (${pct}%)</b><br>` +
     `<span style="color:var(--muted);font-size:13px">Отдельный кусок — в «Мой прогресс» не сохраняется. Всё упражнение целиком — кнопка «↻ Ещё раз».</span>`;
   result.classList.add("show");
@@ -1162,7 +1173,8 @@ goBtn.onclick = () => start();
 // range: practise one fragment ({ from, s, e, title }) instead of the whole exercise
 async function start(range = null) {
   if (!NOTES.length) return;
-  unlockAudio();                // «Мои песни» before any song is added
+  unlockAudio();
+  if (!range && !running && typeof Seek !== "undefined") range = Seek.range();   // a position was chosen                // «Мои песни» before any song is added
   // while an exercise runs the main button pauses / resumes it
   if (running) {
     if (audio.paused) { Coach.hide(); if (!(await countIn(audio.currentTime))) return; await audio.play(); Rec.resume(); goBtn.textContent = "⏸ Пауза"; }
@@ -1350,6 +1362,41 @@ const Monitor = {
   },
 };
 Monitor.init();
+
+// «🎵 Музыка»: the backing track's level (0–150 %), remembered; it sits on the player's path to the speakers
+const MusicVol = {
+  v: 1,
+  init() {
+    try { this.v = Math.min(1.5, Math.max(0, +(localStorage.getItem("musicVol") || 1))); } catch (e) {}
+    const el = document.getElementById("musVol"); el.value = Math.round(this.v * 100);
+    el.oninput = () => { this.v = el.value / 100; try { localStorage.setItem("musicVol", this.v); } catch (e) {} if (Mix.out) Mix.out.gain.setTargetAtTime(this.v, actx.currentTime, 0.02); };
+  },
+};
+MusicVol.init();
+
+// Position: when a run is stopped or paused, drag to any moment — «Начать» then counts in and goes from there
+// (a run from the middle is scored as a part, like «Спеть этот кусок»); ⏮ goes back to the start
+const Seek = {
+  from: 0, el: document.getElementById("seek"), label: document.getElementById("seekT"),
+  end() { return NOTES.length ? Math.ceil(NOTES[NOTES.length - 1][1] + 1) : 0; },
+  mmss: t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`,
+  show(t) { const end = this.end(); this.el.max = end; this.el.value = Math.min(end, Math.max(0, t)); this.label.textContent = `${this.mmss(Math.max(0, t))} / ${this.mmss(end)}`; },
+  reset() { this.from = 0; this.show(0); },
+  go(t) {
+    if (running && audio && !audio.paused) { this.show(lastNow); return; }            // not while singing
+    if (running) stopEarly(false);                                                    // paused: that run ends here
+    this.from = Math.max(0, Math.min(this.end(), t));
+    lastNow = this.from; vLO = null; draw(this.from); showLabel(this.from); this.show(this.from);
+    goBtn.textContent = "▶ Начать";
+  },
+  // the run to start: from here as a part, or the whole exercise
+  range() {
+    if (!NOTES.length || this.from <= NOTES[0][0] + 0.3) return null;
+    return { from: this.from, s: this.from, e: Infinity, title: `С ${this.mmss(this.from)}` };
+  },
+};
+Seek.el.oninput = () => Seek.go(+Seek.el.value);
+document.getElementById("seekHome").onclick = () => Seek.go(0);
 // the Telegram pill: × hides it until the next visit
 {
   const c = document.getElementById("contact");
@@ -1429,7 +1476,7 @@ const Mix = {
         // the piano player itself is routed through Web Audio: one branch to the speakers,
         // one (delayed by the headphone latency) into the recording — reliable in every browser
         // every player of the exercise (a song has two: backing and original) — the muted one adds silence
-        if (!this.out) { this.out = actx.createGain(); this.out.connect(toSpeakers()); }
+        if (!this.out) { this.out = actx.createGain(); this.out.gain.value = MusicVol.v; this.out.connect(toSpeakers()); }
         const pg = actx.createGain(); pg.gain.value = 0.6;   // piano stays underneath the voice
         this.delay = actx.createDelay(1.0); this.delay.connect(pg); pg.connect(this.dest);
         for (const el of audio.all) {
