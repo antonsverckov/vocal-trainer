@@ -80,7 +80,12 @@ const I18N = (() => {
       "The run was interrupted by switching exercises — it wasn't saved. To keep a recording in «My progress», stop with «■ Stop».",
     "Проход остановлен — песня переходит в новую тональность. Нажми «Начать», когда будет готово.": "Run stopped — the song is moving to a new key. Press «Start» when it's ready.",
     "Микрофон включён — нажми «Начать» ещё раз.": "The microphone is on — press «Start» again.",
-    "ориентир": "start note", "Считаю темп…": "Measuring the tempo…", "Запускаю нейросеть…": "Starting the AI model…", "📖 Как пользоваться": "📖 How to use", "Понятно, поехали": "Got it, let's go", "Есть вопросы? Пиши мне в Telegram": "Questions? Message me on Telegram", "Вопросы? Пиши мне": "Questions? Ask me", "Скрыть": "Hide",
+    "ориентир": "start note",
+    "🎧 Слышать себя": "🎧 Hear myself", "🎧 Слышу себя": "🎧 Hearing myself",
+    "Твой голос в наушниках вместе с музыкой. Только в наушниках — из колонок будет свист": "Your voice in the headphones together with the music. Headphones only — speakers will howl",
+    "Громкость твоего голоса в наушниках": "Volume of your voice in the headphones",
+    "Голос появится в наушниках, когда нажмёшь «▶ Начать» и разрешишь микрофон. Только в наушниках — из колонок будет свист.": "Your voice comes into the headphones once you press «▶ Start» and allow the microphone. Headphones only — speakers will howl.",
+    "Только в наушниках — из колонок будет свист.": "Headphones only — speakers will howl.", "Считаю темп…": "Measuring the tempo…", "Запускаю нейросеть…": "Starting the AI model…", "📖 Как пользоваться": "📖 How to use", "Понятно, поехали": "Got it, let's go", "Есть вопросы? Пиши мне в Telegram": "Questions? Message me on Telegram", "Вопросы? Пиши мне": "Questions? Ask me", "Скрыть": "Hide",
     "Микрофон почти не слышит тебя. На iPhone с Bluetooth-наушниками звук с их микрофона бывает очень тихим: пой громче и ближе, или возьми проводные наушники (через переходник) — с ними надёжнее всего.":
       "The microphone can barely hear you. On iPhone with Bluetooth headphones their mic is often very quiet: sing louder and closer, or use wired headphones (with an adapter) — they're the most reliable.",
     "Микрофон почти не слышит тебя. Проверь, что браузеру разрешён микрофон и выбран нужный (значок микрофона в адресной строке), и пой чуть громче.":
@@ -142,6 +147,8 @@ const I18N = (() => {
     [/^Фраза (\d+)$/, "Phrase $1"], [/^Повтор (\d+) · от (.+)$/, "Repetition $1 · from $2"],
     [/^Сдвиг: ([+−])(\d+) полутон(а|ов)?$/, (m, s, n) => `Shift: ${s}${n} semitone${n === "1" ? "" : "s"}`],
     [/^Проход остановлен — открыта песня «(.+)»\. Нажми «Начать», когда будешь готов\.$/, "Run stopped — the song «$1» is open now. Press «Start» when you're ready."],
+    [/^Задержка ~(\d+) мс — похоже на Bluetooth, это задержка самого радиоканала\. .+$/, "Delay ~$1 ms — looks like Bluetooth; that's the radio link itself. For no delay: switch AirPods to Transparency mode and hear yourself live, or use wired headphones."],
+    [/^Задержка ~(\d+) мс\. Только в наушниках .+$/, "Delay ~$1 ms. Headphones only — speakers will howl. For zero delay — the Direct Monitor button on an audio interface or Transparency mode on AirPods."],
     [/^Тональность: (.+)$/, (m, k) => `Key: ${tr(k)}`],
     [/^Загружаю нейросеть \(только в первый раз, ~120 МБ\)… (\d+)%$/, "Loading the AI model (first time only, ~120 MB)… $1%"],
     [/^Отделяю голос от музыки… (\d+)%(?: · осталось ~(.+?))?( · без видеокарты это долго)?$/, (m, p, left, slow) => `Separating the voice from the music… ${p}%` + (left ? ` · ~${dur(left)} left` : "") + (slow ? " · no GPU, this takes a while" : "")],
@@ -227,6 +234,7 @@ const I18N = (() => {
       <li><b>Watch your voice line:</b> <span style="color:var(--hit)">teal</span> — on pitch, <span style="color:var(--high)">orange</span> — sharp, <span style="color:var(--low)">purple</span> — flat.</li>
       <li><b>⏸ Pause</b> — the teacher goes through your mistakes: «▶ How it should sound», «🎤 How you sang», «↻ Sing this part».</li>
       <li>Too fast? <b>Lower the tempo</b> with the slider.</li>
+      <li>Can't hear yourself in the headphones? Press <b>«🎧 Hear myself»</b>: your voice goes into the headphones together with the music.</li>
       <li><b>«My progress»</b> below — every run of 10 seconds or more is saved automatically. You can send a recording to your teacher 📤.</li>
       <li><b>«My songs»</b> — upload your own song (MP3): the trainer removes the singer's voice and shows the notes. Best on a computer; processing takes 2–5 minutes.</li>
     </ol>

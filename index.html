@@ -73,6 +73,9 @@
   .go { background: var(--accent); color: var(--on-accent); border: 0; border-radius: 999px; padding: 12px 26px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform .1s, filter .15s; }
   .go:hover { filter: brightness(1.08); } .go:active { transform: scale(.98); }
   .go:disabled { opacity: .5; cursor: default; }
+  .monitor { display: inline-flex; align-items: center; gap: 8px; }
+  .monitor #monBtn.on { border-color: var(--hit); color: var(--hit); background: rgba(0,218,232,.08); }
+  .monitor input { width: 90px; accent-color: var(--hit); }
   .stop { background: transparent; color: var(--text); border: 1px solid var(--line2); border-radius: 999px; padding: 11px 20px; font-size: 15px; font-weight: 600; cursor: pointer; }
   .tempo { display: inline-flex; align-items: center; gap: 10px; background: rgba(255,255,255,.05); border: 1px solid var(--line); border-radius: 999px; padding: 7px 8px 7px 16px; font-size: 14px; color: var(--muted); }
   .tempo input { width: 160px; accent-color: var(--accent); }
@@ -347,6 +350,9 @@
       <button class="go" id="go">▶ Начать</button>
       <button class="stop" id="stop" hidden>■ Стоп</button>
       <button class="stop" id="askOpen" type="button">💬 Вопрос учителю</button>
+      <div class="monitor"><button class="stop" id="monBtn" type="button" title="Твой голос в наушниках вместе с музыкой. Только в наушниках — из колонок будет свист">🎧 Слышать себя</button>
+        <input type="range" id="monVol" min="0" max="150" value="80" title="Громкость твоего голоса в наушниках" hidden></div>
+      <div class="muted" id="monNote" hidden style="flex-basis:100%"></div>
     </div>
   </section>
 
@@ -447,6 +453,7 @@
       <li><b>Смотри на линию голоса:</b> <span style="color:var(--hit)">бирюзовая</span> — ты в ноте, <span style="color:var(--high)">оранжевая</span> — выше, <span style="color:var(--low)">фиолетовая</span> — ниже.</li>
       <li><b>⏸ Пауза</b> — учитель разберёт ошибки: «▶ Как надо», «🎤 Как спел ты», «↻ Спеть этот кусок».</li>
       <li>Трудно успевать — <b>убавь темп</b> ползунком.</li>
+      <li>Плохо слышишь себя в наушниках — нажми <b>«🎧 Слышать себя»</b>: голос пойдёт в наушники вместе с музыкой.</li>
       <li><b>«Мой прогресс»</b> внизу — каждый проход от 10 секунд сохраняется сам. Запись можно отправить педагогу 📤.</li>
       <li><b>«Мои песни»</b> — загрузи свою песню (MP3): тренажёр уберёт голос певца и покажет ноты. Лучше на компьютере, обработка 2–5 минут.</li>
     </ol>
@@ -1151,14 +1158,17 @@ async function start(range = null) {
     if (!analyser) {
       // mic first, then the audio context at the mic's rate: on iPhone a context made earlier
       // (44.1 kHz) reads a 48 kHz mic ~1.5 semitones flat — every note would count as a miss
-      const mic = micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } } });
+      const mic = micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 }, latency: { ideal: 0 } } });
       if (!actx) {
         const AC = window.AudioContext || window.webkitAudioContext;
         const micRate = (mic.getAudioTracks()[0].getSettings() || {}).sampleRate;
-        try { actx = micRate ? new AC({ sampleRate: micRate }) : new AC(); } catch (e) { actx = new AC(); }
+        // latencyHint 0: the smallest buffer the sound card allows — «Слышать себя» comes back in a few ms
+        try { actx = new AC(micRate ? { sampleRate: micRate, latencyHint: 0 } : { latencyHint: 0 }); }
+        catch (e) { try { actx = micRate ? new AC({ sampleRate: micRate }) : new AC(); } catch (e2) { actx = new AC(); } }
       }
       analyser = actx.createAnalyser(); analyser.fftSize = 2048; buf = new Float32Array(analyser.fftSize);
       voiceIn = micVoice(mic); voiceIn.connect(analyser);
+      Monitor.build();
     }
     if (!audio) {
       goBtn.textContent = "Загрузка…";
@@ -1281,6 +1291,48 @@ if (/[?&]diag\b/.test(location.search)) {
   how.addEventListener("click", e => { if (e.target === how) close(); });       // a tap outside the window closes it
   addEventListener("keydown", e => { if (e.key === "Escape" && !how.hidden) close(); });
 }
+// «Слышать себя»: the voice back in the headphones together with the music, with a little room reverb.
+// Wired headphones: ~10–30 ms, feels natural. Bluetooth adds 150–300 ms (the radio link itself) — an echo,
+// so the student is told. Off by default; the choice and the level are remembered.
+const Monitor = {
+  on: false, vol: 0.8, gain: null,
+  init() {
+    try { this.on = localStorage.getItem("monitor") === "1"; this.vol = Math.min(1.5, Math.max(0, +(localStorage.getItem("monitorVol") || 0.8))); } catch (e) {}
+    document.getElementById("monVol").value = Math.round(this.vol * 100);
+    document.getElementById("monBtn").onclick = () => { this.on = !this.on; this.save(); this.apply(); };
+    document.getElementById("monVol").oninput = e => { this.vol = e.target.value / 100; this.save(); this.apply(); };
+    this.apply();
+  },
+  save() { try { localStorage.setItem("monitor", this.on ? "1" : "0"); localStorage.setItem("monitorVol", this.vol); } catch (e) {} },
+  // a short, soft "room": decaying noise as the impulse response (~1 s)
+  room() {
+    const sr = actx.sampleRate, n = Math.floor(sr * 1.1), buf = actx.createBuffer(2, n, sr);
+    for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3.2); }
+    return buf;
+  },
+  build() {
+    if (this.gain || !actx || !voiceIn) return;
+    const g = actx.createGain(), conv = actx.createConvolver(), wet = actx.createGain();
+    g.gain.value = 0; conv.buffer = this.room(); wet.gain.value = 0.22;
+    // the dry voice goes straight out (no limiter: its look-ahead would add delay); the reverb runs alongside
+    const lift = actx.createGain(); lift.gain.value = IOS ? 3 : 1;           // iPhone turns playback down while the mic is on
+    voiceIn.connect(g); g.connect(lift); lift.connect(actx.destination); g.connect(conv); conv.connect(wet); wet.connect(toSpeakers());
+    this.gain = g; this.apply();
+  },
+  apply() {
+    const btn = document.getElementById("monBtn"), vol = document.getElementById("monVol"), note = document.getElementById("monNote");
+    btn.classList.toggle("on", this.on); btn.textContent = this.on ? "🎧 Слышу себя" : "🎧 Слышать себя"; vol.hidden = !this.on;
+    if (this.gain) this.gain.gain.setTargetAtTime(this.on ? this.vol : 0, actx.currentTime, 0.03);
+    // the round trip: mic input + one processing block + output (as the browser reports them)
+    const tr = micStream && micStream.getAudioTracks()[0], inLat = tr && tr.getSettings ? tr.getSettings().latency || 0 : 0;
+    const out = actx ? Math.round(((actx.outputLatency || 0) + (actx.baseLatency || 0) + inLat + 128 / actx.sampleRate) * 1000) : 0;
+    note.hidden = !this.on;
+    note.textContent = !this.on ? "" : !this.gain ? "Голос появится в наушниках, когда нажмёшь «▶ Начать» и разрешишь микрофон. Только в наушниках — из колонок будет свист."
+      : out > 90 ? `Задержка ~${out} мс — похоже на Bluetooth, это задержка самого радиоканала. Без задержки: на AirPods включи режим «Прозрачность» и слушай себя вживую, или возьми проводные наушники.`
+      : `Задержка ~${out} мс. Только в наушниках — из колонок будет свист. Совсем без задержки — кнопка Direct Monitor на аудиокарте или «Прозрачность» на AirPods.`;
+  },
+};
+Monitor.init();
 // the Telegram pill: × hides it until the next visit
 {
   const c = document.getElementById("contact");
