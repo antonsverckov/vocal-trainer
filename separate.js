@@ -98,17 +98,38 @@ const Separator = (() => {
   function loadScript(src) {
     return new Promise((ok, bad) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => bad(new Error("не загрузилась библиотека нейросети")); document.head.appendChild(s); });
   }
+  // the model pieces live in the browser's Cache Storage: downloaded once, kept across visits
+  // (the ordinary HTTP cache may drop 120 MB at any time)
+  const CACHE = "htdemucs-v1";
+  async function piece(url) {
+    let c = null;
+    try { c = await caches.open(CACHE); const hit = await c.match(url); if (hit) return hit.arrayBuffer(); } catch (e) { c = null; }
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("не загрузилась нейросеть (" + r.status + ")");
+    if (c) try { await c.put(url, r.clone()); } catch (e) {}     // no room: works, just downloads again next time
+    return r.arrayBuffer();
+  }
+  // true when every piece is already stored — the page then says «starting», not «downloading»
+  async function cached() {
+    try {
+      if (!manifest) manifest = await (await fetch(MODEL_DIR + "htdemucs_split_manifest.json")).json();
+      const c = await caches.open(CACHE);
+      for (const p of manifest.pieces) if (!(await c.match(MODEL_DIR + p.file))) return false;
+      return true;
+    } catch (e) { return false; }
+  }
+  // onProgress(fraction, downloading)
   async function load(onProgress = () => {}) {
     if (sessions) return backend;
     if (!window.ort) await loadScript(ORT_URL + "ort.webgpu.min.js");
     ort.env.wasm.wasmPaths = ORT_URL;
     backend = navigator.gpu && (await navigator.gpu.requestAdapter().catch(() => null)) ? "webgpu" : "wasm";
-    manifest = await (await fetch(MODEL_DIR + "htdemucs_split_manifest.json")).json();
+    const stored = await cached();
     sessions = [];
     const n = manifest.pieces.length;
     for (let i = 0; i < n; i++) {
       const p = manifest.pieces[i];
-      const buf = await (await fetch(MODEL_DIR + p.file)).arrayBuffer();
+      const buf = await piece(MODEL_DIR + p.file);
       const final = p.outputs.includes("x") || p.outputs.includes("xt");
       const opts = { graphOptimizationLevel: "all" };
       if (backend === "webgpu") {
@@ -116,7 +137,7 @@ const Separator = (() => {
         opts.preferredOutputLocation = final ? "cpu" : "gpu-buffer";
       } else opts.executionProviders = ["wasm"];
       sessions.push(await ort.InferenceSession.create(buf, opts));
-      onProgress((i + 1) / n);
+      onProgress((i + 1) / n, !stored);
     }
     return backend;
   }

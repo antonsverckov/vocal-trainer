@@ -80,7 +80,7 @@ const I18N = (() => {
       "The run was interrupted by switching exercises — it wasn't saved. To keep a recording in «My progress», stop with «■ Stop».",
     "Проход остановлен — песня переходит в новую тональность. Нажми «Начать», когда будет готово.": "Run stopped — the song is moving to a new key. Press «Start» when it's ready.",
     "Микрофон включён — нажми «Начать» ещё раз.": "The microphone is on — press «Start» again.",
-    "ориентир": "start note", "📖 Как пользоваться": "📖 How to use", "Понятно, поехали": "Got it, let's go", "Есть вопросы? Пиши мне в Telegram": "Questions? Message me on Telegram", "Вопросы? Пиши мне": "Questions? Ask me", "Скрыть": "Hide",
+    "ориентир": "start note", "Запускаю нейросеть…": "Starting the AI model…", "📖 Как пользоваться": "📖 How to use", "Понятно, поехали": "Got it, let's go", "Есть вопросы? Пиши мне в Telegram": "Questions? Message me on Telegram", "Вопросы? Пиши мне": "Questions? Ask me", "Скрыть": "Hide",
     "Микрофон почти не слышит тебя. На iPhone с Bluetooth-наушниками звук с их микрофона бывает очень тихим: пой громче и ближе, или возьми проводные наушники (через переходник) — с ними надёжнее всего.":
       "The microphone can barely hear you. On iPhone with Bluetooth headphones their mic is often very quiet: sing louder and closer, or use wired headphones (with an adapter) — they're the most reliable.",
     "Микрофон почти не слышит тебя. Проверь, что браузеру разрешён микрофон и выбран нужный (значок микрофона в адресной строке), и пой чуть громче.":
@@ -141,6 +141,7 @@ const I18N = (() => {
     [/^(\d+) мин (\d+) с$/, "$1 min $2 s"], [/^(\d+) с$/, "$1 s"],
     [/^Фраза (\d+)$/, "Phrase $1"], [/^Повтор (\d+) · от (.+)$/, "Repetition $1 · from $2"],
     [/^Сдвиг: ([+−])(\d+) полутон(а|ов)?$/, (m, s, n) => `Shift: ${s}${n} semitone${n === "1" ? "" : "s"}`],
+    [/^Проход остановлен — открыта песня «(.+)»\. Нажми «Начать», когда будешь готов\.$/, "Run stopped — the song «$1» is open now. Press «Start» when you're ready."],
     [/^Тональность: (.+)$/, (m, k) => `Key: ${tr(k)}`],
     [/^Загружаю нейросеть \(только в первый раз, ~120 МБ\)… (\d+)%$/, "Loading the AI model (first time only, ~120 MB)… $1%"],
     [/^Отделяю голос от музыки… (\d+)%(?: · осталось ~(.+?))?( · без видеокарты это долго)?$/, (m, p, left, slow) => `Separating the voice from the music… ${p}%` + (left ? ` · ~${dur(left)} left` : "") + (slow ? " · no GPU, this takes a while" : "")],

@@ -2196,7 +2196,7 @@ const Songs = {
       const ab = await new OfflineAudioContext(2, 1, 44100).decodeAudioData(await file.arrayBuffer());
       if (ab.duration > 600) throw new Error("песня длиннее 10 минут");
       const L = ab.getChannelData(0), R = ab.numberOfChannels > 1 ? ab.getChannelData(1) : L;
-      const be = await Separator.load(p => this.job(`Загружаю нейросеть (только в первый раз, ~120 МБ)… ${Math.round(p * 100)}%`, 0.02 + p * 0.08));
+      const be = await Separator.load((p, down) => this.job(down ? `Загружаю нейросеть (только в первый раз, ~120 МБ)… ${Math.round(p * 100)}%` : "Запускаю нейросеть…", 0.02 + p * 0.08));
       const t0 = performance.now();
       const { vocals, instrumental, failed, segments } = await Separator.separate(L, R, p => {
         const left = p > 0.04 ? (performance.now() - t0) / 1000 / p * (1 - p) : null;
@@ -2209,8 +2209,8 @@ const Songs = {
       let words = [];
       const lang = again && again.lang ? again.lang : Lyrics.guessLang(title);
       try {
-        words = await Lyrics.words(vocals[0], vocals[1], lang, p => this.job(
-          p < 0.4 ? `Загружаю распознавание слов (только в первый раз, ~210 МБ)… ${Math.round(p / 0.4 * 100)}%` : "Распознаю слова песни…", 0.86 + p * 0.04));
+        words = await Lyrics.words(vocals[0], vocals[1], lang, (p, down) => this.job(
+          p < 0.4 && down ? `Загружаю распознавание слов (только в первый раз, ~210 МБ)… ${Math.round(p / 0.4 * 100)}%` : "Распознаю слова песни…", 0.86 + p * 0.04));
       } catch (e) { words = []; }                    // a song without words is still a song
       // ready to sing now (instrumental as WAV in memory); the compact MP3 is made in the background, then stored
       const voiced = line.filter(p => p[1] != null).length / Math.max(1, line.length);
@@ -2225,7 +2225,13 @@ const Songs = {
       this.list.unshift(rec); this.mount(rec);
       this.busy = false;
       sel.song = String(rec.id);
-      if (sel.sec === "songs" && !running) choose(); else this.renderBar();
+      // the new song opens at once — even mid-run or on pause (that run stops; from 10 s it is kept in «Мой прогресс»)
+      if (sel.sec === "songs") {
+        const was = running || !!counting;
+        if (running) stopEarly(false);
+        choose();
+        if (was) err.textContent = `Проход остановлен — открыта песня «${rec.title}». Нажми «Начать», когда будешь готов.`;
+      } else this.renderBar();
       const saving = p => this.job(`Готово — можно петь! Минус сохраняется в память браузера… ${Math.round(p * 100)}%`, p);
       saving(0);
       rec.inst = await mp3InWorker(instrumental, 44100, 160, saving).catch(() => mp3FromChannels(instrumental, 44100, 160, saving));

@@ -10,6 +10,12 @@ const Lyrics = (() => {
   const MODEL = "onnx-community/whisper-small_timestamped";     // exported with word-level timing; ~210 MB once
   let asr = null;
 
+  // transformers.js keeps downloaded models in Cache Storage ("transformers-cache"): when this model's
+  // decoder is there, loading is just starting it, not a download
+  async function stored() {
+    try { return (await (await caches.open("transformers-cache")).keys()).some(r => r.url.includes("whisper-small_timestamped") && r.url.includes("decoder")); }
+    catch (e) { return false; }
+  }
   async function load(onProgress) {
     if (asr) return asr;
     const { pipeline } = await import(LIB);
@@ -42,8 +48,10 @@ const Lyrics = (() => {
   const guessLang = title => { const t = (title || "").normalize("NFC"); return /[іїєґ]/i.test(t) ? "ukrainian" : /[а-яё]/i.test(t) ? "russian" : "english"; };
 
   // [[start_s, end_s, word], …]; lang: "russian" | "ukrainian" | "english"
+  // onProgress(fraction, downloading) — downloading: the model is being fetched for the first time
   async function words(L, R, lang = "russian", onProgress = () => {}) {
-    const run = await load(p => onProgress(p * 0.4));
+    const down = !asr && !(await stored());
+    const run = await load(p => onProgress(p * 0.4, down));
     onProgress(0.42);
     const audio = await to16k(L, R);
     const out = await run(audio, { return_timestamps: "word", chunk_length_s: 30, stride_length_s: 5, language: lang, task: "transcribe" });
