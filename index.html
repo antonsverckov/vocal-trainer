@@ -73,10 +73,11 @@
   .go { background: var(--accent); color: var(--on-accent); border: 0; border-radius: 999px; padding: 12px 26px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform .1s, filter .15s; }
   .go:hover { filter: brightness(1.08); } .go:active { transform: scale(.98); }
   .go:disabled { opacity: .5; cursor: default; }
-  .seek { display: flex; align-items: center; gap: 10px; margin: 10px 2px 0; }
-  .seek input { flex: 1; min-width: 0; accent-color: var(--hit); }
-  .seek button { background: none; border: 1px solid var(--line2); color: var(--text); border-radius: 50%; width: 32px; height: 32px; cursor: pointer; flex: none; }
-  .seek span { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 86px; text-align: right; }
+  /* the lane's position slider (not «.seek» — that is the recording player's bar in «Мой прогресс») */
+  .lanepos { display: flex; align-items: center; gap: 10px; margin: 10px 2px 0; }
+  .lanepos input { flex: 1; min-width: 0; height: 24px; accent-color: var(--hit); cursor: pointer; }
+  .lanepos button { background: none; border: 1px solid var(--line2); color: var(--text); border-radius: 50%; width: 32px; height: 32px; cursor: pointer; flex: none; }
+  .lanepos span { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 86px; text-align: right; }
   .musvol { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
   .musvol input { width: 90px; accent-color: var(--accent); }
   .monitor { display: inline-flex; align-items: center; gap: 8px; }
@@ -366,7 +367,7 @@
   <section class="stagewrap">
     <div class="now" id="nowLabel" hidden></div>
     <div class="stage"><canvas id="cv"></canvas><div class="countin" id="countIn" hidden></div></div>
-    <div class="seek"><button type="button" id="seekHome" title="В начало">⏮</button>
+    <div class="lanepos"><button type="button" id="seekHome" title="В начало">⏮</button>
       <input type="range" id="seek" min="0" max="10" step="0.1" value="0" title="Перемотай, когда проход остановлен или на паузе, — и «Начать» пойдёт с этого места">
       <span id="seekT">0:00</span></div>
   <div class="readout">
