@@ -1,7 +1,7 @@
 // The words of a song, with the time each one is sung — speech recognition right in the browser
 // (Whisper small, multilingual, via transformers.js; the model is fetched from Hugging Face once and cached).
-// The language is given, not guessed: on sung Russian, Whisper's own guess often says "English" and then
-// produces junk (the same short "word" over and over).
+// The language is found by listening (detectLang), not from the file name: an English song with a Russian
+// file name, recognised as Russian, came out as a loop of junk («С ан я С ан я…»).
 // Runs on the separated vocals of the student's own song; nothing is sent anywhere.
 "use strict";
 
@@ -47,6 +47,62 @@ const Lyrics = (() => {
   // the language of a song from its name: і ї є ґ → Ukrainian, other Cyrillic → Russian, otherwise English
   const guessLang = title => { const t = (title || "").normalize("NFC"); return /[іїєґ]/i.test(t) ? "ukrainian" : /[а-яё]/i.test(t) ? "russian" : "english"; };
 
+  // The song's language from the separated vocals. Two 30-s stretches where the voice is loudest are
+  // transcribed twice: as Russian and as English. Forced to Russian, Whisper still writes an English song
+  // in English letters; forced to English, a Russian song comes out nearly empty — so the language whose
+  // own letters give more words wins (Whisper's own first-token guess calls sung Russian "English" too
+  // often). Russian vs Ukrainian is then settled by the language tokens. fallback: from the title.
+  async function detectLang(L, R, fallback = "english", onProgress = () => {}) {
+    try {
+      const down = !asr && !(await stored());
+      const run = await load(p => onProgress(p * 0.6, down));
+      const audio = await to16k(L, R), W = 30 * 16000;
+      const parts = [];
+      for (let o = 0; o + W <= audio.length; o += W / 2) { let e = 0; for (let i = o; i < o + W; i += 4) e += audio[i] * audio[i]; parts.push([o, e]); }
+      if (!parts.length) parts.push([0, 1]);
+      parts.sort((a, b) => b[1] - a[1]);
+      const pick = [parts[0]]; const far = parts.find(p => Math.abs(p[0] - parts[0][0]) >= W); if (far) pick.push(far);
+      const count = (t, re) => (t.match(re) || []).length;
+      let ru = 0, en = 0, uk = 0, step = 0;
+      for (const [o] of pick) {
+        const seg = audio.subarray(o, Math.min(audio.length, o + W));
+        const a = String((await run(seg, { language: "russian", task: "transcribe" })).text || "");
+        onProgress(0.6 + 0.4 * (++step) / (pick.length * 2));
+        const b = String((await run(seg, { language: "english", task: "transcribe" })).text || "");
+        onProgress(0.6 + 0.4 * (++step) / (pick.length * 2));
+        ru += count(a, /[а-яё]{2,}/gi); en += count(b, /[a-z]{2,}/gi);
+        uk += await ukVsRu(run, seg);
+      }
+      if (ru === 0 && en === 0) return fallback;
+      if (en > ru) return "english";
+      if (ru > en) return uk > 0 ? "ukrainian" : "russian";
+      return fallback;
+    } catch (e) { return fallback; }
+  }
+  // > 0 when Whisper's first-token guess prefers Ukrainian over Russian for this stretch
+  async function ukVsRu(run, seg) {
+    try {
+      const { Tensor } = await import(LIB);
+      const { input_features } = await run.processor(seg);
+      const o = await run.model({ input_features, decoder_input_ids: new Tensor("int64", BigInt64Array.from([50258n]), [1, 1]) });
+      const V = o.logits.dims.at(-1), D = o.logits.data, base = D.length - V;
+      return D[base + 50280] > D[base + 50263] ? 1 : -1;      // <|uk|> vs <|ru|>
+    } catch (e) { return -1; }
+  }
+
+  // recognition loops: the same 1–4 words repeated 3+ times in a row («С ан я С ан я С ан я…») are not lyrics
+  function dropLoops(ws) {
+    const key = i => ws[i][2].toLowerCase().replace(/[^\p{L}']/gu, "");
+    const bad = new Uint8Array(ws.length);
+    for (let p = 1; p <= 4; p++)
+      for (let i = 0; i + 3 * p <= ws.length; i++) {
+        let reps = 1;
+        while (i + (reps + 1) * p <= ws.length && [...Array(p).keys()].every(k => key(i + k) === key(i + reps * p + k))) reps++;
+        if (reps >= 3) { bad.fill(1, i, i + reps * p); i += reps * p - 1; }
+      }
+    return ws.filter((w, i) => !bad[i]);
+  }
+
   // [[start_s, end_s, word], …]; lang: "russian" | "ukrainian" | "english"
   // onProgress(fraction, downloading) — downloading: the model is being fetched for the first time
   async function words(L, R, lang = "russian", onProgress = () => {}) {
@@ -60,8 +116,9 @@ const Lyrics = (() => {
     const ws = (out.chunks || [])
       .map(c => [c.timestamp[0], c.timestamp[1] == null ? c.timestamp[0] + 0.3 : c.timestamp[1], String(c.text || "").trim()])
       .filter(w => w[2] && Number.isFinite(w[0]) && w[0] < audio.length / 16000 && letters.test(w[2]));   // real words of this language, inside the song
-    // junk filter: the same word more than 3 times in a row is a recognition loop, not lyrics
-    const clean = ws.filter((w, i) => !(i >= 3 && [1, 2, 3].every(k => ws[i - k][2].toLowerCase() === w[2].toLowerCase())));
+    // junk filter: loops are dropped; when most of it was a loop, the rest is not trusted either
+    const clean = dropLoops(ws);
+    if (ws.length >= 20 && clean.length < ws.length * 0.4) return [];
     return clean.map(([s, e, w]) => [Math.round(s * 100) / 100, Math.round(e * 100) / 100, w]);
   }
 
@@ -91,5 +148,5 @@ const Lyrics = (() => {
     return out;
   }
 
-  return { words, perNote, guessLang };
+  return { words, perNote, guessLang, detectLang, _dropLoops: dropLoops };
 })();

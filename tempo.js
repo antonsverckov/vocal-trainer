@@ -108,8 +108,31 @@ const Tempo = (() => {
     const g = bestGroup.group;
     if (found.length >= 4 && g.length < found.length * 0.34) return null;   // windows disagree: no steady tempo
     const bpm = g.reduce((s, x) => s + x.bpm * x.confidence, 0) / bestGroup.weight;
-    return { bpm: Math.round(bpm), confidence: +(bestGroup.weight / g.length).toFixed(2), windows: `${g.length}/${found.length}` };
+    return { bpm: Math.round(bpm), confidence: +(bestGroup.weight / g.length).toFixed(2), windows: `${g.length}/${found.length}`, grid: gridOf(env, bpm) };
   }
 
-  return { detect, _onsets: onsets, _beatOf: beatOf };   // _…: for tests
+  // where the beats are, not only how fast: every 4 s, the offset of the beat in an 8-s stretch
+  // (the one at which the onsets line up best), as [time of a beat, s] — so a count-in can land on the beat.
+  // Local, not one offset for the whole song: a live band drifts a little.
+  function gridOf(env, bpm) {
+    const fps = SR / HOP, p = fps * 60 / bpm, W = Math.round(8 * fps), STEP = Math.round(4 * fps), out = [];
+    const at = i => { const k = Math.round(i); return k >= 0 && k < env.length ? env[k] : 0; };
+    for (let w = 0; w + p < env.length; w += STEP) {
+      let best = 0, bestS = -1;
+      for (let f = 0; f < p; f += 0.5) {
+        let s = 0; for (let t = w + f; t < Math.min(env.length, w + W); t += p) s += at(t) + 0.5 * (at(t - 1) + at(t + 1));
+        if (s > bestS) { bestS = s; best = f; }
+      }
+      out.push(+((w + best) / fps + 0.005).toFixed(3));        // frame centre
+    }
+    return out;
+  }
+  // the last beat at or before `t` (track seconds), from a stored grid; null without one
+  function beatBefore(grid, bpm, t) {
+    if (!grid || !grid.length || !bpm) return null;
+    const step = 4, i = Math.max(0, Math.min(grid.length - 1, Math.round((t - 4) / step))), a = grid[i], b = 60 / bpm;
+    return a + Math.floor((t - a) / b + 1e-6) * b;
+  }
+
+  return { detect, beatBefore, _onsets: onsets, _beatOf: beatOf, _gridOf: gridOf };   // _…: for tests
 })();

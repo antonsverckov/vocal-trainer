@@ -1249,7 +1249,8 @@ function firstNoteHint(fromTrack) {
 let counting = null, countOut = null;
 async function countIn(fromTrack) {
   const token = counting = {}, box = document.getElementById("countIn");
-  const beat = current.files ? 0.7 : 60 / (+bpmIn.value || 80);            // songs: no known tempo, an easy pace
+  // songs: the song's own tempo (at the chosen speed), so the count runs into the music in time; unknown → an easy pace
+  const beat = current.files ? (current.tempo ? 60 / current.tempo / rate : 0.7) : 60 / (+bpmIn.value || 80);
   const first = NOTES.find(n => n[0] >= fromTrack - 0.01);
   if (first) {
     const syl = current.syllables && current.syllables[NOTES.indexOf(first)];
@@ -1258,7 +1259,10 @@ async function countIn(fromTrack) {
   // «…три, четыре — Ми»: after bar 2 the first note comes on the very next beat, so a short lead-in of the
   // recording is skipped in every exercise (1.5–5 s before the first note); a song keeps an intro longer than 4 s.
   // The jump is made now, while the count runs, so the player has the sound ready when it starts
-  if (first && first[0] - fromTrack > 0.05 && (!current.files || first[0] - fromTrack <= 4)) audio.currentTime = first[0] - 0.05;
+  let startAt = first && first[0] - fromTrack > 0.05 && (!current.files || first[0] - fromTrack <= 4) ? first[0] - 0.05 : null;
+  // a song starts exactly on one of its beats, so «…три, четыре» is followed by the next beat of the music
+  if (current.files && current.grid) { const b = Tempo.beatBefore(current.grid, current.tempo, startAt != null ? startAt : fromTrack); if (b != null) { let x = b; while (x < 0) x += 60 / current.tempo; startAt = x; } }
+  if (startAt != null) audio.currentTime = startAt;
   if (!countOut) { countOut = actx.createGain(); countOut.connect(toSpeakers()); }
   const t0 = actx.currentTime + 0.05;
   token.osc = [];
@@ -1392,7 +1396,7 @@ const Seek = {
   },
   // the run to start: from here as a part, or the whole exercise
   range() {
-    if (!NOTES.length || this.from <= NOTES[0][0] + 0.3) return null;
+    if (!NOTES.length || this.from < 0.3) return null;                                // any chosen point, the intro too
     return { from: this.from, s: this.from, e: Infinity, title: `С ${this.mmss(this.from)}` };
   },
 };
@@ -2236,20 +2240,20 @@ const Songs = {
     C.items["songs/" + r.id] = { title: r.title, audio: inst, files: [inst, orig], bpm: 100, shift: k,
                                  notes: k ? r.notes.map(([a, b, m]) => [a, b, m + k]) : r.notes,
                                  line: k ? r.line.map(([t, m]) => [t, m == null ? null : m + k]) : r.line,
-                                 keyName: transposeKey(base, k), tempo: r.tempo || 0,
+                                 keyName: transposeKey(base, k), tempo: r.tempo || 0, grid: r.grid || null,
                                  lyrics: r.words && r.words.length ? Lyrics.perNote(r.notes, r.words) : null };
   },
   // a song processed before tempo detection: measured quietly the first time it is opened, then kept
   async tempoLater(r) {
-    if (r.tempo !== undefined || r.tempoBusy) return;
+    if ((r.tempo !== undefined && (r.grid || r.tempo === 0)) || r.tempoBusy) return;     // older songs: tempo, then where the beats are
     r.tempoBusy = true;
     try {
       const buf = await new OfflineAudioContext(2, 1, 44100).decodeAudioData(await r.inst.arrayBuffer());
       const t = await Tempo.detect(buf.getChannelData(0), buf.numberOfChannels > 1 ? buf.getChannelData(1) : buf.getChannelData(0));
-      r.tempo = t ? t.bpm : 0;
+      r.tempo = t ? t.bpm : 0; r.grid = t ? t.grid : null;
       delete r.tempoBusy; await DB.tx("readwrite", s => s.put(r), "songs");
-      const item = C.items["songs/" + r.id]; if (item) item.tempo = r.tempo;
-      if (sel.sec === "songs" && sel.song === String(r.id) && !running) choose(); else this.renderBar();
+      const item = C.items["songs/" + r.id]; if (item) { item.tempo = r.tempo; item.grid = r.grid; }
+      if (sel.sec === "songs" && sel.song === String(r.id) && !running && !audio) { const f = Seek.from; choose(); if (f) Seek.go(f); } else this.renderBar();
     } catch (e) { delete r.tempoBusy; }
   },
   // move a song up or down (semitones): instrumental and original are pitch-shifted once, kept, tempo unchanged
@@ -2339,14 +2343,17 @@ const Songs = {
       const notes = Melody.notes(line);
       if (!notes.length) throw new Error("в песне не нашлось вокала");
       let words = [];
-      const lang = again && again.lang ? again.lang : Lyrics.guessLang(title);
+      // the language: the one the student chose stays; otherwise it is heard from the voice itself
+      let lang = again && again.langManual && again.lang ? again.lang : Lyrics.guessLang(title);
+      if (!(again && again.langManual)) lang = await Lyrics.detectLang(vocals[0], vocals[1], lang, (p, down) => this.job(
+        p < 0.6 && down ? `Загружаю распознавание слов (только в первый раз, ~210 МБ)… ${Math.round(p / 0.6 * 100)}%` : "Определяю язык песни…", 0.85 + p * 0.01));
       try {
         words = await Lyrics.words(vocals[0], vocals[1], lang, (p, down) => this.job(
           p < 0.4 && down ? `Загружаю распознавание слов (только в первый раз, ~210 МБ)… ${Math.round(p / 0.4 * 100)}%` : "Распознаю слова песни…", 0.86 + p * 0.04));
       } catch (e) { words = []; }                    // a song without words is still a song
       // the tempo, from the backing track (drums and attacks are clearest there); 0 = no steady beat
       this.job("Считаю темп…", 0.9);
-      let tempo = 0; try { const t = await Tempo.detect(instrumental[0], instrumental[1]); tempo = t ? t.bpm : 0; } catch (e) {}
+      let tempo = 0, grid = null; try { const t = await Tempo.detect(instrumental[0], instrumental[1]); tempo = t ? t.bpm : 0; grid = t ? t.grid : null; } catch (e) {}
       // ready to sing now (instrumental as WAV in memory); the compact MP3 is made in the background, then stored
       const voiced = line.filter(p => p[1] != null).length / Math.max(1, line.length);
       const key = again && again.keyManual ? again.key : keyFor(Melody.key(notes)).name;   // a key the student chose stays
@@ -2355,7 +2362,7 @@ const Songs = {
         this.list = this.list.filter(x => x !== again);
       }
       const rec = { id: again ? again.id : Date.now(), title, created: again ? again.created : Date.now(), duration: ab.duration, notes, line: line.filter((_, i) => i % 2 === 0),
-                    inst: wavBlob(instrumental, 44100), orig: file, backend: be, key, tempo, keyManual: !!(again && again.keyManual), words, lang,
+                    inst: wavBlob(instrumental, 44100), orig: file, backend: be, key, tempo, grid, keyManual: !!(again && again.keyManual), words, lang, langManual: !!(again && again.langManual),
                     stats: { voiced: Math.round(voiced * 100), failed, segments, secs: Math.round((performance.now() - t0) / 1000) } };
       this.list.unshift(rec); this.mount(rec);
       this.busy = false;
@@ -2399,7 +2406,7 @@ document.getElementById("songKey").onchange = async e => {
 };
 document.getElementById("songLang").onchange = e => {
   const r = Songs.list.find(x => String(x.id) === sel.song); if (!r) return;
-  r.lang = e.target.value; Songs.add(r.orig, r);           // words in the chosen language: the song is processed again
+  r.lang = e.target.value; r.langManual = true; Songs.add(r.orig, r);           // words in the chosen language: the song is processed again
 };
 document.getElementById("songShift").onchange = e => {
   const r = Songs.list.find(x => String(x.id) === sel.song); if (r) Songs.setShift(r, +e.target.value);

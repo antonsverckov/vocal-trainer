@@ -40,7 +40,7 @@ const I18N = (() => {
     "Удалить песню": "Delete song", "🎤 Голос певца: выкл": "🎤 Singer's voice: off", "🎤 Голос певца: вкл": "🎤 Singer's voice: on",
     "Сдвиг: оригинал": "Shift: original",
     "Всё считается на твоём устройстве — песня никуда не отправляется. Не закрывай страницу.": "Everything runs on your device — the song isn't uploaded anywhere. Keep this page open.",
-    "Читаю файл…": "Reading the file…", "Снимаю мелодию…": "Finding the melody…", "Распознаю слова песни…": "Recognising the lyrics…",
+    "Читаю файл…": "Reading the file…", "Снимаю мелодию…": "Finding the melody…", "Распознаю слова песни…": "Recognising the lyrics…", "Определяю язык песни…": "Detecting the song’s language…",
     "Файл больше 60 МБ — возьми MP3 песни до 10 минут.": "The file is over 60 MB — use an MP3 of a song up to 10 minutes.",
     // teacher and questions
     "Учитель": "Teacher", "🔊 Ещё раз": "🔊 Again", "💬 Спроси учителя": "💬 Ask the teacher", "Спросить": "Ask",
