@@ -2230,6 +2230,18 @@ const Songs = {
     try { this.list = (await DB.tx("readonly", s => s.getAll(), "songs")) || []; } catch (e) { this.list = []; }
     this.list.sort((a, b) => b.created - a.created);
     this.list.forEach(r => this.mount(r));
+    // the last song was being processed when the page went away: almost always the phone ran out of memory.
+    // Next time the heavy part that failed is made lighter (lyrics skipped, or the model on the CPU)
+    let stage = null; try { stage = localStorage.getItem("songStage"); localStorage.removeItem("songStage"); } catch (e) {}
+    if (stage && !/^Готово/.test(stage)) {
+      const words = /слов|язык/i.test(stage);
+      if (words) try { localStorage.setItem("songNoWords", "1"); } catch (e) {}
+      this.crashNote = `Прошлый раз обработка песни прервалась на шаге «${stage}» — браузеру на этом устройстве не хватило памяти, и он перезапустил страницу. ` +
+        (words ? "Теперь песни будут обрабатываться без распознавания слов (ноты и минус — как обычно). Загрузи песню ещё раз."
+               : "Попробуй ещё раз, закрыв другие вкладки и приложения; на iPhone надёжнее открывать сайт в Safari. Если повторится — возьми песню покороче.");
+      sel.sec = "songs";                             // open «Мои песни», where the note is shown
+      setTimeout(() => this.job(this.crashNote, null, true), 0);
+    }
   },
   // a stored song becomes a trainer item: instrumental (or the original, with the singer) + notes + the singer's line
   mount(r) {
@@ -2315,6 +2327,8 @@ const Songs = {
       (r.tempo ? ` · темп ${r.tempo} BPM` : r.tempo === 0 ? " · темп не определён" : "") + (r.words ? (r.words.length ? ` · слов ${r.words.length}` : " · слова не распознались") : " · без слов — нажми «Пересчитать ноты»") + (r.stats.failed ? ` · ⚠ сбой нейросети на ${r.stats.failed} из ${r.stats.segments} кусков — там нот не будет` : "");
   },
   job(text, frac, isError) {
+    // the step in progress is noted, so a page the phone had to reload (out of memory) can tell what happened
+    try { if (this.busy && text != null && !isError) localStorage.setItem("songStage", text.replace(/\s*[\d~·].*$/, "")); else localStorage.removeItem("songStage"); } catch (e) {}
     const box = document.getElementById("songJob");
     box.hidden = text == null; if (text == null) return;
     document.getElementById("songJobText").textContent = text;
@@ -2339,18 +2353,23 @@ const Songs = {
         this.job(`Отделяю голос от музыки… ${Math.round(p * 100)}%` + (left ? ` · осталось ~${fmtLeft(left)}` : "") +
           (be === "wasm" ? " · без видеокарты это долго" : ""), 0.1 + p * 0.72);
       });
+      if (IOS) await Separator.unload();             // phones: free ~the model's memory before the next heavy step
       const line = await Melody.contour(vocals[0], vocals[1], p => this.job(`Снимаю мелодию… ${Math.round(p * 100)}%`, 0.82 + p * 0.08));
       const notes = Melody.notes(line);
       if (!notes.length) throw new Error("в песне не нашлось вокала");
       let words = [];
       // the language: the one the student chose stays; otherwise it is heard from the voice itself
       let lang = again && again.langManual && again.lang ? again.lang : Lyrics.guessLang(title);
+      let noWords = false; try { noWords = localStorage.getItem("songNoWords") === "1"; } catch (e) {}
+      if (!noWords) {
       if (!(again && again.langManual)) lang = await Lyrics.detectLang(vocals[0], vocals[1], lang, (p, down) => this.job(
         p < 0.6 && down ? `Загружаю распознавание слов (только в первый раз, ~210 МБ)… ${Math.round(p / 0.6 * 100)}%` : "Определяю язык песни…", 0.85 + p * 0.01));
       try {
         words = await Lyrics.words(vocals[0], vocals[1], lang, (p, down) => this.job(
           p < 0.4 && down ? `Загружаю распознавание слов (только в первый раз, ~210 МБ)… ${Math.round(p / 0.4 * 100)}%` : "Распознаю слова песни…", 0.86 + p * 0.04));
       } catch (e) { words = []; }                    // a song without words is still a song
+      if (IOS) await Lyrics.unload();
+      }
       // the tempo, from the backing track (drums and attacks are clearest there); 0 = no steady beat
       this.job("Считаю темп…", 0.9);
       let tempo = 0, grid = null; try { const t = await Tempo.detect(instrumental[0], instrumental[1]); tempo = t ? t.bpm : 0; grid = t ? t.grid : null; } catch (e) {}

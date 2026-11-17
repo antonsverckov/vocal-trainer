@@ -158,6 +158,8 @@ const I18N = (() => {
     [/^Отделяю голос от музыки… (\d+)%(?: · осталось ~(.+?))?( · без видеокарты это долго)?$/, (m, p, left, slow) => `Separating the voice from the music… ${p}%` + (left ? ` · ~${dur(left)} left` : "") + (slow ? " · no GPU, this takes a while" : "")],
     [/^Снимаю мелодию… (\d+)%$/, "Finding the melody… $1%"],
     [/^Загружаю распознавание слов \(только в первый раз, ~210 МБ\)… (\d+)%$/, "Loading lyrics recognition (first time only, ~210 MB)… $1%"],
+    [/^Прошлый раз обработка песни прервалась на шаге «(.+?)» — .*без распознавания слов.*$/, "Last time the song processing stopped at «$1»: the browser on this device ran out of memory and reloaded the page. Songs will now be processed without lyrics recognition (notes and backing track as usual). Upload the song again."],
+    [/^Прошлый раз обработка песни прервалась на шаге «(.+?)» — .*$/, "Last time the song processing stopped at «$1»: the browser on this device ran out of memory and reloaded the page. Try again with other tabs and apps closed; on iPhone, Safari is more reliable. If it happens again, use a shorter song."],
     [/^Готово — можно петь! Минус сохраняется в память браузера… (\d+)%$/, "Done — you can sing! Saving the backing track in your browser… $1%"],
     [/^Готово — можно петь! Сохраняю сдвинутую песню… (\d+)%$/, "Done — you can sing! Saving the shifted song… $1%"],
     [/^Сдвигаю песню на ([+−])(\d+) полутон… (\d+)%$/, "Shifting the song by $1$2 semitones… $3%"],

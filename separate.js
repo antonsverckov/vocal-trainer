@@ -123,7 +123,11 @@ const Separator = (() => {
     if (sessions) return backend;
     if (!window.ort) await loadScript(ORT_URL + "ort.webgpu.min.js");
     ort.env.wasm.wasmPaths = ORT_URL;
+    // (the CPU is no fallback for phones: one 8-s piece takes minutes there — a song would take half an hour)
     backend = navigator.gpu && (await navigator.gpu.requestAdapter().catch(() => null)) ? "webgpu" : "wasm";
+    // on the CPU the model runs in a background worker (proxy): the page stays alive and responsive —
+    // a page frozen for minutes is closed by iOS
+    if (backend === "wasm") { ort.env.wasm.numThreads = 1; ort.env.wasm.proxy = true; }
     const stored = await cached();
     sessions = [];
     const n = manifest.pieces.length;
@@ -211,5 +215,12 @@ const Separator = (() => {
     return { vocals, instrumental, failed, segments: offsets.length };
   }
 
-  return { load, separate, SR, get backend() { return backend; }, _spec: spec, _ispec: ispec };   // _spec/_ispec: for tests
+  // free the model's memory (phones: before the lyrics model is loaded); the next song loads it again from the cache
+  async function unload() {
+    if (!sessions) return;
+    for (const s of sessions) { try { await s.release(); } catch (e) {} }
+    sessions = null;
+  }
+
+  return { load, unload, separate, SR, get backend() { return backend; }, _spec: spec, _ispec: ispec };   // _spec/_ispec: for tests
 })();

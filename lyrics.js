@@ -62,7 +62,10 @@ const Lyrics = (() => {
       if (!parts.length) parts.push([0, 1]);
       parts.sort((a, b) => b[1] - a[1]);
       const pick = [parts[0]]; const far = parts.find(p => Math.abs(p[0] - parts[0][0]) >= W); if (far) pick.push(far);
-      const count = (t, re) => (t.match(re) || []).length;
+      // words of one alphabet, without recognition loops and without the phrases Whisper makes up over
+      // music it cannot follow («Thank you.», «I'm going to go ahead and…»)
+      const FAKE = /\b(thank you|thanks for watching|i'm going to go ahead and( do)?( the)?|please subscribe|you)\b[.!]?/gi;
+      const count = (t, re) => dropLoops(t.replace(FAKE, " ").split(/\s+/).filter(Boolean).map(w => [0, 0, w])).filter(w => re.test(w[2])).length;
       let ru = 0, en = 0, uk = 0, step = 0;
       for (const [o] of pick) {
         const seg = audio.subarray(o, Math.min(audio.length, o + W));
@@ -70,13 +73,13 @@ const Lyrics = (() => {
         onProgress(0.6 + 0.4 * (++step) / (pick.length * 2));
         const b = String((await run(seg, { language: "english", task: "transcribe" })).text || "");
         onProgress(0.6 + 0.4 * (++step) / (pick.length * 2));
-        ru += count(a, /[а-яё]{2,}/gi); en += count(b, /[a-z]{2,}/gi);
+        ru += count(a, /[а-яё]{2,}/i); en += count(b, /[a-z]{2,}/i);
         uk += await ukVsRu(run, seg);
       }
       if (ru === 0 && en === 0) return fallback;
-      if (en > ru) return "english";
-      if (ru > en) return uk > 0 ? "ukrainian" : "russian";
-      return fallback;
+      // forced to Russian, an English song gives (almost) no Cyrillic words — so a few real ones are enough
+      if (ru >= 2 && ru * 4 >= en) return uk > 0 ? "ukrainian" : "russian";
+      return en > ru ? "english" : fallback;
     } catch (e) { return fallback; }
   }
   // > 0 when Whisper's first-token guess prefers Ukrainian over Russian for this stretch
@@ -148,5 +151,8 @@ const Lyrics = (() => {
     return out;
   }
 
-  return { words, perNote, guessLang, detectLang, _dropLoops: dropLoops };
+  // free the recognition model's memory (phones)
+  async function unload() { if (asr) { try { await asr.dispose(); } catch (e) {} asr = null; } }
+
+  return { words, unload, perNote, guessLang, detectLang, _dropLoops: dropLoops };
 })();
