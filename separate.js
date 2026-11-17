@@ -135,7 +135,9 @@ const Separator = (() => {
       const p = manifest.pieces[i];
       const buf = await piece(MODEL_DIR + p.file);
       const final = p.outputs.includes("x") || p.outputs.includes("xt");
-      const opts = { graphOptimizationLevel: "all" };
+      const cfg = window.SEP_CFG || {};                               // test hook: memory settings
+      const opts = { graphOptimizationLevel: cfg.opt || "all" };
+      if (cfg.arena === false) { opts.enableCpuMemArena = false; opts.enableMemPattern = false; }
       if (backend === "webgpu") {
         opts.executionProviders = [i === 0 ? { name: "webgpu", forceCpuNodeNames: CPU_NODES } : "webgpu"];
         opts.preferredOutputLocation = final ? "cpu" : "gpu-buffer";
