@@ -121,7 +121,8 @@ const Lyrics = (() => {
       .filter(w => w[2] && Number.isFinite(w[0]) && w[0] < audio.length / 16000 && letters.test(w[2]));   // real words of this language, inside the song
     // junk filter: loops are dropped; when most of it was a loop, the rest is not trusted either
     const clean = dropLoops(ws);
-    if (ws.length >= 20 && clean.length < ws.length * 0.4) return [];
+    // (the language is now heard, not guessed, so a wrong-language song no longer comes out as one big loop:
+    // a loop Whisper adds over a long instrumental part is dropped, the real words around it stay)
     return clean.map(([s, e, w]) => [Math.round(s * 100) / 100, Math.round(e * 100) / 100, w]);
   }
 

@@ -106,8 +106,10 @@ const Separator = (() => {
     try { c = await caches.open(CACHE); const hit = await c.match(url); if (hit) return hit.arrayBuffer(); } catch (e) { c = null; }
     const r = await fetch(url);
     if (!r.ok) throw new Error("не загрузилась нейросеть (" + r.status + ")");
-    if (c) try { await c.put(url, r.clone()); } catch (e) {}     // no room: works, just downloads again next time
-    return r.arrayBuffer();
+    // straight into the cache, then read once: a clone() would hold two copies of the piece at a time
+    // (phones close a tab that briefly takes too much memory)
+    if (c) try { await c.put(url, r); const hit = await c.match(url); if (hit) return hit.arrayBuffer(); } catch (e) {}
+    return r.bodyUsed ? (await fetch(url)).arrayBuffer() : r.arrayBuffer();
   }
   // true when every piece is already stored — the page then says «starting», not «downloading»
   async function cached() {
@@ -119,6 +121,22 @@ const Separator = (() => {
     } catch (e) { return false; }
   }
   // onProgress(fraction, downloading)
+  // Low-memory mode (iPhone / iPad, or after a crash): the 21 pieces are not all kept in memory at once —
+  // each one is created, run and released in turn for every 8-s segment, so the peak is one piece plus
+  // the data passing through, instead of the whole model on the GPU and in the page (phones close the tab).
+  // Costs ~2 s per segment. On a computer all pieces stay loaded (fast).
+  const IOS_LIKE = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  let lowMem = false;
+  function optsFor(i) {
+    const p = manifest.pieces[i], final = p.outputs.includes("x") || p.outputs.includes("xt");
+    const opts = { graphOptimizationLevel: "all" };
+    if (lowMem) { opts.enableCpuMemArena = false; opts.enableMemPattern = false; }
+    if (backend === "webgpu") {
+      opts.executionProviders = [i === 0 ? { name: "webgpu", forceCpuNodeNames: CPU_NODES } : "webgpu"];
+      opts.preferredOutputLocation = final || lowMem ? "cpu" : "gpu-buffer";     // low memory: nothing outlives its piece on the GPU
+    } else opts.executionProviders = ["wasm"];
+    return opts;
+  }
   async function load(onProgress = () => {}) {
     if (sessions) return backend;
     if (!window.ort) await loadScript(ORT_URL + "ort.webgpu.min.js");
@@ -128,21 +146,19 @@ const Separator = (() => {
     // on the CPU the model runs in a background worker (proxy): the page stays alive and responsive —
     // a page frozen for minutes is closed by iOS
     if (backend === "wasm") { ort.env.wasm.numThreads = 1; ort.env.wasm.proxy = true; }
+    let forced = false; try { forced = localStorage.getItem("songLowMem") === "1"; } catch (e) {}
+    lowMem = IOS_LIKE || forced || !!(window.SEP_CFG && window.SEP_CFG.lowMem);
     const stored = await cached();
-    sessions = [];
     const n = manifest.pieces.length;
+    if (lowMem) {                                   // only make sure every piece is in the cache; nothing is kept
+      for (let i = 0; i < n; i++) { if (!stored) await piece(MODEL_DIR + manifest.pieces[i].file); onProgress((i + 1) / n, !stored); }
+      sessions = "lazy";
+      return backend;
+    }
+    sessions = [];
     for (let i = 0; i < n; i++) {
-      const p = manifest.pieces[i];
-      const buf = await piece(MODEL_DIR + p.file);
-      const final = p.outputs.includes("x") || p.outputs.includes("xt");
-      const cfg = window.SEP_CFG || {};                               // test hook: memory settings
-      const opts = { graphOptimizationLevel: cfg.opt || "all" };
-      if (cfg.arena === false) { opts.enableCpuMemArena = false; opts.enableMemPattern = false; }
-      if (backend === "webgpu") {
-        opts.executionProviders = [i === 0 ? { name: "webgpu", forceCpuNodeNames: CPU_NODES } : "webgpu"];
-        opts.preferredOutputLocation = final ? "cpu" : "gpu-buffer";
-      } else opts.executionProviders = ["wasm"];
-      sessions.push(await ort.InferenceSession.create(buf, opts));
+      const buf = await piece(MODEL_DIR + manifest.pieces[i].file);
+      sessions.push(await ort.InferenceSession.create(buf, optsFor(i)));
       onProgress((i + 1) / n, !stored);
     }
     return backend;
@@ -153,13 +169,25 @@ const Separator = (() => {
     spec(mixL, mag, 0); spec(mixR, mag, 1);
     const mix = new Float32Array(2 * SEG); mix.set(mixL, 0); mix.set(mixR, SEG);
     const map = { mix: new ort.Tensor("float32", mix, [1, 2, SEG]), mag: new ort.Tensor("float32", mag, [1, 4, BINS, FRAMES]) };
-    const made = [];
-    for (let i = 0; i < sessions.length; i++) {
+    const made = [], n = manifest.pieces.length;
+    for (let i = 0; i < n; i++) {
       const p = manifest.pieces[i], feeds = {};
       for (const name of p.inputs) feeds[name] = map[name];
-      const out = await sessions[i].run(feeds);
+      // the piece and the action are noted: if a phone closes the page here, the next visit can say exactly where
+      const mark = t => { if (sessions === "lazy") try { localStorage.setItem("sepAt", `кусок ${i + 1} из ${n}, ${t}`); } catch (e) {} };
+      mark("создание");
+      let sess = sessions === "lazy" ? await ort.InferenceSession.create(await piece(MODEL_DIR + p.file), optsFor(i)) : sessions[i];
+      mark("запуск");
+      const out = await sess.run(feeds);
+      if (sessions === "lazy") { try { await sess.release(); } catch (e) {} sess = null; }
       for (const name of p.outputs) { map[name] = out[name]; made.push(out[name]); }
+      // low memory: what no later piece reads is dropped right away
+      if (sessions === "lazy") for (const k of Object.keys(map)) {
+        if (k === "x" || k === "xt") continue;
+        if (!manifest.pieces.slice(i + 1).some(q => q.inputs.includes(k))) { try { map[k].dispose && map[k].dispose(); } catch (e) {} delete map[k]; }
+      }
     }
+    if (sessions === "lazy") try { localStorage.removeItem("sepAt"); } catch (e) {}
     const x = await map.x.getData(), xt = await map.xt.getData();
     for (const t of made) { try { t.dispose(); } catch (e) {} }
     if (!finite(x) || !finite(xt)) return null;
@@ -183,8 +211,6 @@ const Separator = (() => {
     let mean = 0; for (let i = 0; i < len; i++) mean += (left[i] + right[i]) / 2; mean /= len;
     let v = 0; for (let i = 0; i < len; i++) { const d = (left[i] + right[i]) / 2 - mean; v += d * d; }
     const std = Math.sqrt(v / Math.max(1, len - 1)) || 1;
-    const norm = ch => { const o = new Float32Array(len); for (let i = 0; i < len; i++) o[i] = (ch[i] - mean) / std; return o; };
-    const L = norm(left), R = norm(right);
     const outL = new Float32Array(len), outR = new Float32Array(len), wsum = new Float32Array(len);
     const weight = new Float32Array(SEG), half = Math.floor(SEG / 2);
     for (let i = 0; i < SEG; i++) weight[i] = (i < half ? i + 1 : SEG - i) / half;
@@ -195,8 +221,9 @@ const Separator = (() => {
       const off = offsets[k], cl = Math.min(SEG, len - off);
       // a short last chunk is padded around its centre with earlier audio / zeros (TensorChunk.padded)
       const start = off - Math.floor((SEG - cl) / 2);
-      const take = ch => { const o = new Float32Array(SEG); for (let i = 0; i < SEG; i++) { const s = start + i; o[i] = s >= 0 && s < len ? ch[s] : 0; } return o; };
-      const sl = take(L), sr = take(R);
+      // normalised piece by piece (a normalised copy of the whole song cost ~85 MB for 4 minutes)
+      const take = ch => { const o = new Float32Array(SEG); for (let i = 0; i < SEG; i++) { const s = start + i; o[i] = s >= 0 && s < len ? (ch[s] - mean) / std : 0; } return o; };
+      const sl = take(left), sr = take(right);
       let voc = await runSegment(sl, sr);
       if (!voc) voc = await runSegment(sl, sr);       // one more try
       if (!voc) { failed++; voc = [new Float32Array(SEG), new Float32Array(SEG)]; }
@@ -220,9 +247,9 @@ const Separator = (() => {
   // free the model's memory (phones: before the lyrics model is loaded); the next song loads it again from the cache
   async function unload() {
     if (!sessions) return;
-    for (const s of sessions) { try { await s.release(); } catch (e) {} }
+    if (Array.isArray(sessions)) for (const s of sessions) { try { await s.release(); } catch (e) {} }
     sessions = null;
   }
 
-  return { load, unload, separate, SR, get backend() { return backend; }, _spec: spec, _ispec: ispec };   // _spec/_ispec: for tests
+  return { load, unload, separate, SR, get backend() { return backend; }, get lowMem() { return lowMem; }, _spec: spec, _ispec: ispec };   // _spec/_ispec: for tests
 })();

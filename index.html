@@ -2235,13 +2235,14 @@ const Songs = {
     this.list.forEach(r => this.mount(r));
     // the last song was being processed when the page went away: almost always the phone ran out of memory.
     // Next time the heavy part that failed is made lighter (lyrics skipped, or the model on the CPU)
-    let stage = null; try { stage = localStorage.getItem("songStage"); localStorage.removeItem("songStage"); } catch (e) {}
+    let stage = null, at = null;
+    try { stage = localStorage.getItem("songStage"); at = localStorage.getItem("sepAt"); localStorage.removeItem("songStage"); localStorage.removeItem("sepAt"); } catch (e) {}
     // only phones run out of memory this way; on a computer a reload is just a reload (and an old flag is lifted)
     if (!IOS) { try { localStorage.removeItem("songNoWords"); } catch (e) {} stage = null; }
     if (stage && !/^Готово/.test(stage)) {
       const words = /слов|язык/i.test(stage);
       if (words) try { localStorage.setItem("songNoWords", "1"); } catch (e) {}
-      this.crashNote = `Прошлый раз обработка песни прервалась на шаге «${stage}» — браузеру на этом устройстве не хватило памяти, и он перезапустил страницу. ` +
+      this.crashNote = `Прошлый раз обработка песни прервалась на шаге «${stage}»${at ? ` (${at})` : ""} — браузеру на этом устройстве не хватило памяти, и он перезапустил страницу. ` +
         (words ? "Теперь песни будут обрабатываться без распознавания слов (ноты и минус — как обычно). Загрузи песню ещё раз."
                : "Попробуй ещё раз, закрыв другие вкладки и приложения; на iPhone надёжнее открывать сайт в Safari. Если повторится — возьми песню покороче.");
       sel.sec = "songs";                             // open «Мои песни», where the note is shown
