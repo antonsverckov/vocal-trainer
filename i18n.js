@@ -40,6 +40,8 @@ const I18N = (() => {
     "Удалить песню": "Delete song", "🎤 Голос певца: выкл": "🎤 Singer's voice: off", "🎤 Голос певца: вкл": "🎤 Singer's voice: on",
     "Сдвиг: оригинал": "Shift: original",
     "Всё считается на твоём устройстве — песня никуда не отправляется. Не закрывай страницу.": "Everything runs on your device — the song isn't uploaded anywhere. Keep this page open.",
+    "Если что-то сломается, автору уйдёт анонимный технический отчёт (устройство, браузер, шаг) — без песни и личных данных.": "If something breaks, an anonymous technical report (device, browser, step) goes to the author — never the song or personal data.",
+    "Песня готова и открыта, но браузер не дал её сохранить (мало места на устройстве или в браузере) — после перезагрузки страницы её не будет. Освободи место и загрузи ещё раз.": "The song is ready and open, but the browser refused to save it (not enough space on the device or in the browser) — it will be gone after a reload. Free up some space and upload it again.",
     "Читаю файл…": "Reading the file…", "Снимаю мелодию…": "Finding the melody…", "Распознаю слова песни…": "Recognising the lyrics…", "Определяю язык песни…": "Detecting the song’s language…",
     "Файл больше 60 МБ — возьми MP3 песни до 10 минут.": "The file is over 60 MB — use an MP3 of a song up to 10 minutes.",
     // teacher and questions
@@ -160,7 +162,7 @@ const I18N = (() => {
     [/^Загружаю распознавание слов \(только в первый раз, ~210 МБ\)… (\d+)%$/, "Loading lyrics recognition (first time only, ~210 MB)… $1%"],
     [/^Прошлый раз обработка песни прервалась на шаге «(.+?)»(?: \((.+?)\))? — .*без распознавания слов.*$/, "Last time the song processing stopped at «$1» $2: the browser on this device ran out of memory and reloaded the page. Songs will now be processed without lyrics recognition (notes and backing track as usual). Upload the song again."],
     [/^Прошлый раз обработка песни прервалась на шаге «(.+?)»(?: \((.+?)\))? — .*$/, "Last time the song processing stopped at «$1» $2: the browser on this device ran out of memory and reloaded the page. Try again with other tabs and apps closed; on iPhone, Safari is more reliable. If it happens again, use a shorter song."],
-    [/^Готово — можно петь! Минус сохраняется в память браузера… (\d+)%$/, "Done — you can sing! Saving the backing track in your browser… $1%"],
+    [/^Готово — песня открыта, можно петь! Сохраняю её в память браузера, чтобы осталась… (\d+)%$/, "Done — the song is open, you can sing! Saving it in your browser so it stays… $1%"],
     [/^Готово — можно петь! Сохраняю сдвинутую песню… (\d+)%$/, "Done — you can sing! Saving the shifted song… $1%"],
     [/^Сдвигаю песню на ([+−])(\d+) полутон… (\d+)%$/, "Shifting the song by $1$2 semitones… $3%"],
     [/^Не получилось обработать песню: (.+)$/, (m, e) => `Couldn't process the song: ${tr(e)}`],

@@ -132,7 +132,13 @@ const Separator = (() => {
     const opts = { graphOptimizationLevel: "all" };
     if (lowMem) { opts.enableCpuMemArena = false; opts.enableMemPattern = false; }
     if (backend === "webgpu") {
-      opts.executionProviders = [i === 0 ? { name: "webgpu", forceCpuNodeNames: CPU_NODES } : "webgpu"];
+      // low memory: the GPU engine normally keeps every freed buffer «for later» (bucket cache), shared by all
+      // pieces — with pieces made and released one by one that store only grows until the phone closes the tab
+      const ep = { name: "webgpu" };
+      if (i === 0) ep.forceCpuNodeNames = CPU_NODES;
+      // («lazyRelease» frees them after every run: 343 MB GPU peak instead of 471; «disabled» breaks the engine)
+      if (lowMem) ep.storageBufferCacheMode = (window.SEP_CFG && SEP_CFG.cache) || "lazyRelease";
+      opts.executionProviders = [ep];
       opts.preferredOutputLocation = final || lowMem ? "cpu" : "gpu-buffer";     // low memory: nothing outlives its piece on the GPU
     } else opts.executionProviders = ["wasm"];
     return opts;
@@ -164,7 +170,7 @@ const Separator = (() => {
     return backend;
   }
 
-  async function runSegment(mixL, mixR) {
+  async function runSegment(mixL, mixR, where = "") {
     const mag = new Float32Array(4 * BINS * FRAMES);
     spec(mixL, mag, 0); spec(mixR, mag, 1);
     const mix = new Float32Array(2 * SEG); mix.set(mixL, 0); mix.set(mixR, SEG);
@@ -174,12 +180,17 @@ const Separator = (() => {
       const p = manifest.pieces[i], feeds = {};
       for (const name of p.inputs) feeds[name] = map[name];
       // the piece and the action are noted: if a phone closes the page here, the next visit can say exactly where
-      const mark = t => { if (sessions === "lazy") try { localStorage.setItem("sepAt", `кусок ${i + 1} из ${n}, ${t}`); } catch (e) {} };
+      const mark = t => { if (sessions === "lazy") try { localStorage.setItem("sepAt", `${where}кусок ${i + 1} из ${n}, ${t}`); } catch (e) {} };
       mark("создание");
       let sess = sessions === "lazy" ? await ort.InferenceSession.create(await piece(MODEL_DIR + p.file), optsFor(i)) : sessions[i];
       mark("запуск");
       const out = await sess.run(feeds);
-      if (sessions === "lazy") { try { await sess.release(); } catch (e) {} sess = null; }
+      if (sessions === "lazy") {
+        try { await sess.release(); } catch (e) {}
+        sess = null;
+        // a moment for Safari to actually give the freed memory back (a hidden tab slows timers to 1 s: no pause there)
+        await (document.hidden ? yieldUI() : new Promise(r => setTimeout(r, 30)));
+      }
       for (const name of p.outputs) { map[name] = out[name]; made.push(out[name]); }
       // low memory: what no later piece reads is dropped right away
       if (sessions === "lazy") for (const k of Object.keys(map)) {
@@ -224,8 +235,9 @@ const Separator = (() => {
       // normalised piece by piece (a normalised copy of the whole song cost ~85 MB for 4 minutes)
       const take = ch => { const o = new Float32Array(SEG); for (let i = 0; i < SEG; i++) { const s = start + i; o[i] = s >= 0 && s < len ? (ch[s] - mean) / std : 0; } return o; };
       const sl = take(left), sr = take(right);
-      let voc = await runSegment(sl, sr);
-      if (!voc) voc = await runSegment(sl, sr);       // one more try
+      const where = `отрезок ${k + 1} из ${offsets.length}, `;
+      let voc = await runSegment(sl, sr, where);
+      if (!voc) voc = await runSegment(sl, sr, where);       // one more try
       if (!voc) { failed++; voc = [new Float32Array(SEG), new Float32Array(SEG)]; }
       const [vl, vr] = voc;
       const trim = Math.floor((SEG - cl) / 2);

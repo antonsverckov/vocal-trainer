@@ -50,6 +50,14 @@ class RangeHandler(http.server.SimpleHTTPRequestHandler):
             left -= len(chunk)
         self._remaining = None
 
+    def do_POST(self):
+        # test pages send their failure reports here (Report.URL) instead of Telegram
+        import urllib.parse
+        body = self.rfile.read(int(self.headers.get("Content-Length") or 0)).decode("utf-8", "replace")
+        text = urllib.parse.parse_qs(body).get("text", [body])[0]
+        sys.stderr.write("REPORT " + text.replace("\n", " | ") + "\n"); sys.stderr.flush()
+        self.send_response(204); self.end_headers()
+
     def end_headers(self):
         if not self.headers.get("Range"):
             self.send_header("Accept-Ranges", "bytes")

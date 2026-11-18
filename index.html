@@ -349,7 +349,7 @@
       <div class="muted" id="songInfo" hidden style="flex-basis:100%"></div>
     </div>
     <div class="songjob" id="songJob" hidden><div id="songJobText"></div><div class="sj-bar"><i id="songJobBar"></i></div>
-      <div class="muted" id="songJobNote">Всё считается на твоём устройстве — песня никуда не отправляется. Не закрывай страницу.</div></div>
+      <div class="muted" id="songJobNote">Всё считается на твоём устройстве — песня никуда не отправляется. Не закрывай страницу.<br>Если что-то сломается, автору уйдёт анонимный технический отчёт (устройство, браузер, шаг) — без песни и личных данных.</div></div>
     <div class="about" id="about" hidden></div>
     <div class="transport">
       <label class="tempo">Темп <input type="range" id="bpm" min="40" max="120" step="1" value="78"> <b id="bpmV">78</b>&nbsp;<span id="bpmUnit">BPM</span>
@@ -2224,6 +2224,44 @@ async function pitchShift(buf, k, onProgress = () => {}) {
   }
   return [L, R];
 }
+// Failures → a short anonymous technical report to the author's Telegram, through his own relay script.
+// Never the song, a name or an e-mail: the device, the browser, the step that broke, the error text.
+const Report = {
+  RELAY: "https://script.google.com/macros/s/AKfycbw9tGKtLoS3sW2w565ujtSEQBixbZdNHOxRcdb_BWVFpWP3VcXwrGhbmpwMbfJ3gK5XMw/exec",                                     // the author's Google Apps Script → Telegram (the bot token lives there, not here; empty = off)
+  URL: (() => { try { return localStorage.getItem("reportUrl"); } catch (e) { return null; } })(),   // tests send to the local server
+  sent: 0,
+  id() { try { let v = localStorage.getItem("rid"); if (!v) { v = Math.random().toString(36).slice(2, 8); localStorage.setItem("rid", v); } return v; } catch (e) { return "—"; } },
+  device() {
+    const u = navigator.userAgent, ipad = /iPad/.test(u) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const os = /iPhone/.test(u) ? "iPhone" : ipad ? "iPad" : /Android/.test(u) ? "Android" : /Mac OS X/.test(u) ? "Mac" : /Windows/.test(u) ? "Windows" : /Linux/.test(u) ? "Linux" : "?";
+    const osv = ((/iPhone|iPad/.test(u) && u.match(/OS (\d+)[_.](\d+)/)) || u.match(/Android (\d+)/) || []).slice(1).filter(Boolean).join(".");
+    const br = [[/YaBrowser\/(\d+)/, "Яндекс"], [/Edg[A-Z]*\/(\d+)/, "Edge"], [/OPR\/(\d+)/, "Opera"], [/CriOS\/(\d+)/, "Chrome"], [/FxiOS\/(\d+)|Firefox\/(\d+)/, "Firefox"],
+                [/Chrome\/(\d+)/, "Chrome"], [/Version\/(\d+).*Safari/, "Safari"]].find(([re]) => re.test(u));
+    const bv = br ? (u.match(br[0]) || []).slice(1).find(Boolean) : "";
+    return `${os}${osv ? " " + osv : ""}, ${br ? br[1] + " " + bv : "браузер ?"}`;
+  },
+  async facts() {
+    const f = [this.device()];
+    if (navigator.deviceMemory) f.push(`память ≥${navigator.deviceMemory} ГБ`);
+    if (navigator.hardwareConcurrency) f.push(`ядер ${navigator.hardwareConcurrency}`);
+    f.push(navigator.gpu ? "WebGPU есть" : "WebGPU нет");
+    try { const e = await navigator.storage.estimate(); f.push(`место браузера: занято ${Math.round(e.usage / 1048576)} МБ из ${Math.round(e.quota / 1048576)} МБ`); } catch (e) {}
+    try { if (navigator.storage.persisted) f.push(await navigator.storage.persisted() ? "хранилище постоянное" : "хранилище может стереться"); } catch (e) {}
+    f.push(`экран ${screen.width}×${screen.height}`, `язык ${navigator.language}`, `id ${this.id()}`);
+    return f.join(" · ");
+  },
+  async send(title, details = "") {
+    if (this.sent >= 6) return;                  // a broken page sends a few reports, not hundreds
+    const url = this.URL || this.RELAY;
+    if (!url) return;
+    this.sent++;
+    let facts = ""; try { facts = await this.facts(); } catch (e) {}
+    const text = `${title}\n${details ? details + "\n" : ""}${facts}\n${location.host}${location.pathname}`.slice(0, 3500);
+    try { await fetch(url, { method: "POST", mode: "no-cors", keepalive: true, body: new URLSearchParams({ text }) }); } catch (e) {}
+  },
+};
+addEventListener("error", e => { if (e.message && e.message !== "Script error.") Report.send("⚠️ Ошибка на странице", `${e.message} (${(e.filename || "").split("/").pop()}:${e.lineno})`); });
+addEventListener("unhandledrejection", e => { const r = e.reason; Report.send("⚠️ Ошибка на странице", String(r && (r.stack || r.message) || r).slice(0, 600)); });
 // a page closed or reloaded by the person says so (pagehide); a page killed for memory does not —
 // so the noted processing step is cleared here, and only a real crash leaves it behind
 addEventListener("pagehide", () => { try { localStorage.removeItem("songStage"); } catch (e) {} });
@@ -2237,6 +2275,8 @@ const Songs = {
     // Next time the heavy part that failed is made lighter (lyrics skipped, or the model on the CPU)
     let stage = null, at = null;
     try { stage = localStorage.getItem("songStage"); at = localStorage.getItem("sepAt"); localStorage.removeItem("songStage"); localStorage.removeItem("sepAt"); } catch (e) {}
+    // a step left behind = the page went away without pagehide: the browser killed it (memory) or crashed
+    if (stage && !/^Готово/.test(stage)) Report.send("💥 Страница перезапустилась посреди обработки песни", `шаг: ${stage}${at ? ` (${at})` : ""}${IOS ? "" : " · не iPhone: возможно, просто закрыли браузер"}`);
     // only phones run out of memory this way; on a computer a reload is just a reload (and an old flag is lifted)
     if (!IOS) { try { localStorage.removeItem("songNoWords"); } catch (e) {} stage = null; }
     if (stage && !/^Готово/.test(stage)) {
@@ -2334,6 +2374,7 @@ const Songs = {
   },
   job(text, frac, isError) {
     // the step in progress is noted, so a page the phone had to reload (out of memory) can tell what happened
+    if (this.busy && text != null && !isError) this.step = text;
     try { if (this.busy && text != null && !isError) localStorage.setItem("songStage", text.replace(/\s*[\d~·].*$/, "")); else localStorage.removeItem("songStage"); } catch (e) {}
     const box = document.getElementById("songJob");
     box.hidden = text == null; if (text == null) return;
@@ -2352,13 +2393,21 @@ const Songs = {
       const ab = await new OfflineAudioContext(2, 1, 44100).decodeAudioData(await file.arrayBuffer());
       if (ab.duration > 600) throw new Error("песня длиннее 10 минут");
       const L = ab.getChannelData(0), R = ab.numberOfChannels > 1 ? ab.getChannelData(1) : L;
-      const be = await Separator.load((p, down) => this.job(down ? `Загружаю нейросеть (только в первый раз, ~120 МБ)… ${Math.round(p * 100)}%` : "Запускаю нейросеть…", 0.02 + p * 0.08));
+      let flags = {}; try { flags = { ok: localStorage.getItem("modelOk"), dl: localStorage.getItem("modelDl") }; } catch (e) {}
+      let downSeen = false;
+      const be = await Separator.load((p, down) => (down && !downSeen && (downSeen = true, (() => {
+        if (flags.ok) Report.send("🗑 Браузер стёр сохранённую нейросеть — качается заново");
+        else if (flags.dl) Report.send("🔁 Скачивание нейросети началось заново (прошлое не дошло до конца)");
+        try { localStorage.setItem("modelDl", "1"); localStorage.removeItem("modelOk"); } catch (e) {}
+      })()), this.job(down ? `Загружаю нейросеть (только в первый раз, ~120 МБ)… ${Math.round(p * 100)}%` : "Запускаю нейросеть…", 0.02 + p * 0.08)));
+      try { localStorage.removeItem("modelDl"); localStorage.setItem("modelOk", "1"); } catch (e) {}
       const t0 = performance.now();
       const { vocals, instrumental, failed, segments } = await Separator.separate(L, R, p => {
         const left = p > 0.04 ? (performance.now() - t0) / 1000 / p * (1 - p) : null;
         this.job(`Отделяю голос от музыки… ${Math.round(p * 100)}%` + (left ? ` · осталось ~${fmtLeft(left)}` : "") +
           (be === "wasm" ? " · без видеокарты это долго" : ""), 0.1 + p * 0.72);
       });
+      if (failed) Report.send(`⚠️ Сбой нейросети на ${failed} из ${segments} кусков`, `песня ${Math.round(ab.duration)} с · ${be}`);
       if (IOS) await Separator.unload();             // phones: free ~the model's memory before the next heavy step
       const line = await Melody.contour(vocals[0], vocals[1], p => this.job(`Снимаю мелодию… ${Math.round(p * 100)}%`, 0.82 + p * 0.08));
       const notes = Melody.notes(line);
@@ -2373,7 +2422,7 @@ const Songs = {
       try {
         words = await Lyrics.words(vocals[0], vocals[1], lang, (p, down) => this.job(
           p < 0.4 && down ? `Загружаю распознавание слов (только в первый раз, ~210 МБ)… ${Math.round(p / 0.4 * 100)}%` : "Распознаю слова песни…", 0.86 + p * 0.04));
-      } catch (e) { words = []; }                    // a song without words is still a song
+      } catch (e) { words = []; Report.send("⚠️ Слова не распознались (ошибка)", String(e && e.message || e)); }   // a song without words is still a song
       if (IOS) await Lyrics.unload();
       }
       // the tempo, from the backing track (drums and attacks are clearest there); 0 = no steady beat
@@ -2399,13 +2448,20 @@ const Songs = {
         choose();
         if (was) err.textContent = `Проход остановлен — открыта песня «${rec.title}». Нажми «Начать», когда будешь готов.`;
       } else this.renderBar();
-      const saving = p => this.job(`Готово — можно петь! Минус сохраняется в память браузера… ${Math.round(p * 100)}%`, p);
+      // the bar stays full: a bar dropping back to 0 here looked like «it went almost to the end and reset»
+      const saving = p => this.job(`Готово — песня открыта, можно петь! Сохраняю её в память браузера, чтобы осталась… ${Math.round(p * 100)}%`, 1);
       saving(0);
       rec.inst = await mp3InWorker(instrumental, 44100, 160, saving).catch(() => mp3FromChannels(instrumental, 44100, 160, saving));
-      await DB.tx("readwrite", s => s.put(rec), "songs");
+      try { await DB.tx("readwrite", s => s.put(rec), "songs"); }
+      catch (e) {                                    // sung already, but it will not survive a reload: say so plainly
+        Report.send("💾 Песня не сохранилась в память браузера", `${e && e.name || ""} ${e && e.message || e} · песня ${Math.round(ab.duration)} с`);
+        this.job("Песня готова и открыта, но браузер не дал её сохранить (мало места на устройстве или в браузере) — после перезагрузки страницы её не будет. Освободи место и загрузи ещё раз.", null, true);
+        return;
+      }
       this.job(null);
     } catch (e) {
       this.busy = false; this.renderBar();
+      Report.send("❌ Не получилось обработать песню", `${e && e.name ? e.name + ": " : ""}${e && e.message || e}\nшаг: ${this.step || "?"} · файл ${file.type || "?"}, ${(file.size / 1048576).toFixed(1)} МБ`);
       this.job("Не получилось обработать песню: " + (e && e.message || e), null, true);
     }
   },
