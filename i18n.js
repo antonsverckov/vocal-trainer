@@ -23,7 +23,7 @@ const I18N = (() => {
     "Начинающие": "Beginner", "Продолжающие": "Intermediate", "начинающие": "beginner", "продолжающие": "intermediate",
     "Начинающие: без фальцета — парни не выше До4, девушки не выше До5": "Beginner: no falsetto — men up to C4, women up to C5",
     "Темп": "Tempo", "Оригинальный темп": "Original tempo",
-    "▶ Начать": "▶ Start", "■ Стоп": "■ Stop", "⏸ Пауза": "⏸ Pause", "▶ Продолжить": "▶ Continue", "↻ Ещё раз": "↻ Again", "Загрузка…": "Loading…",
+    "▶ Начать": "▶ Start", "▶ Послушать": "▶ Listen", "Послушать мелодию упражнения на пианино перед тем, как петь": "Hear the exercise melody on the piano before you sing", "■ Стоп": "■ Stop", "⏸ Пауза": "⏸ Pause", "▶ Продолжить": "▶ Continue", "↻ Ещё раз": "↻ Again", "Загрузка…": "Loading…",
     "💬 Вопрос учителю": "💬 Ask the teacher",
     "Как выполнять": "How to do it", "Сейчас:": "Now:", "Сейчас": "Now",
     "Нужно спеть": "Sing", "Ты поёшь": "You sing", "Точность": "Accuracy", "Масштаб": "Zoom", "Уменьшить": "Zoom out", "Увеличить": "Zoom in",
